@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ta-arcade</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<div id="stage" class="hidden">
+  <div id="scaler">
+    <!-- 打っている人が管理者のときだけ出る管理パネル（admin.js） -->
+    <aside id="slotAdmin" class="hidden" aria-label="管理"></aside>
+
+    <!-- 台 -->
+    <div id="cabinet">
+      <div class="counter" id="counter">
+        <div class="cnt"><span class="k">現在</span><span class="v seg" id="cSince">0</span></div>
+        <div class="cnt"><span class="k">BIG</span><span class="v seg" id="cBig">0</span></div>
+        <div class="cnt"><span class="k">REG</span><span class="v seg" id="cReg">0</span></div>
+        <div class="cnt"><span class="k">総回転</span><span class="v seg" id="cTotal">0</span></div>
+      </div>
+
+      <div class="upper"><img src="img/panel_upper.png" alt=""></div>
+
+      <div class="reelbox">
+        <div class="lines left" id="linesL">
+          <i data-l="2"></i><i data-l="1"></i><i data-l="3"></i>
+        </div>
+        <div class="reels">
+          <canvas class="reel" id="reel1"></canvas>
+          <canvas class="reel" id="reel2"></canvas>
+          <canvas class="reel" id="reel3"></canvas>
+          <div class="glass"></div>
+          <svg class="paylines" id="paylines" viewBox="0 0 480 360" preserveAspectRatio="none"></svg>
+        </div>
+        <div class="lines right" id="linesR">
+          <i data-l="2"></i><i data-l="1"></i><i data-l="3"></i>
+        </div>
+      </div>
+
+      <div class="infobar">
+        <div class="lamp" id="lamp"><img id="lampImg" src="img/lamp_off.png" alt=""></div>
+        <div class="bets">
+          <i id="bet1">1</i><i id="bet2">2</i><i id="bet3">3</i>
+        </div>
+        <div class="disp">
+          <span class="lbl">CREDIT</span>
+          <span class="seg big" id="credit">0</span>
+        </div>
+        <div class="disp">
+          <span class="lbl">PAY</span>
+          <span class="seg big" id="pay">0</span>
+        </div>
+        <div class="state" id="state"><span id="stateText">&nbsp;</span></div>
+      </div>
+
+      <div class="shelf">
+        <button class="lever" id="lever" title="レバー（スペース）"><span class="stick"></span><span class="knob"></span></button>
+        <button class="maxbet" id="maxbet" title="MAX BET（B）">MAX<br>BET</button>
+        <div class="stops">
+          <button class="stop" data-r="1" title="左（← / 1）"></button>
+          <button class="stop" data-r="2" title="中（↓ / 2）"></button>
+          <button class="stop" data-r="3" title="右（→ / 3）"></button>
+        </div>
+        <button class="payout" id="payoutBtn" title="精算して立つ（Esc）">精算</button>
+      </div>
+
+      <div class="lower"><img src="img/panel_lower.png" alt=""></div>
+      <div class="tray"></div>
+    </div>
+
+    <!-- 横の案内 -->
+    <aside id="side">
+      <div class="card">
+        <div class="row"><span>現金</span><b id="cash">0円</b></div>
+        <div class="row"><span>レート</span><b id="rate">100円 / 枚</b></div>
+        <div class="row"><span>クレジット</span><b id="creditYen">0円</b></div>
+        <div class="row bonusrow hidden" id="bonusRow"><span id="bonusLabel">BIG</span><b id="bonusLeft">残り 0枚</b></div>
+      </div>
+      <div class="card keys">
+        <div><kbd>Space</kbd> レバー（自動で3枚掛け）</div>
+        <div><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> 停止（<kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> でも）</div>
+        <div><kbd>B</kbd> MAX BET　<kbd>M</kbd> 音</div>
+        <div><kbd>Esc</kbd> 精算して立つ</div>
+      </div>
+      <div class="card hist">
+        <div class="ttl">ボーナス履歴</div>
+        <ol id="history"></ol>
+      </div>
+      <div class="card paytable">
+        <div class="ttl">配当</div>
+        <div class="pt"><img src="img/sym_seven.png"><img src="img/sym_seven.png"><img src="img/sym_seven.png"><span>BIG</span></div>
+        <div class="pt"><img src="img/sym_lantern.png"><img src="img/sym_lantern.png"><img src="img/sym_lantern.png"><span>REG</span></div>
+        <div class="pt"><img src="img/sym_bell.png"><img src="img/sym_bell.png"><img src="img/sym_bell.png"><span data-m="8">8枚</span></div>
+        <div class="pt"><img src="img/sym_suika.png"><img src="img/sym_suika.png"><img src="img/sym_suika.png"><span data-m="6">6枚</span></div>
+        <div class="pt"><img src="img/sym_cherry.png"><i></i><i></i><span data-m="2">2枚</span></div>
+        <div class="pt"><img src="img/sym_replay.png"><img src="img/sym_replay.png"><img src="img/sym_replay.png"><span>再遊技</span></div>
+        <div class="note">ボーナス中はベル 15枚。BIG は <b id="bigEnd">252</b>枚、REG は <b id="regEnd">96</b>枚を超えるまで。</div>
+      </div>
+    </aside>
+  </div>
+  <div id="toast" class="hidden"></div>
+</div>
+
+<!-- データカウンター（台の前で見る） -->
+<div id="dataview" class="hidden">
+  <div class="dv">
+    <div class="dvhead">台 <span id="dvId">#0</span> のデータ</div>
+    <div class="dvnums">
+      <div><span>現在</span><b class="seg" id="dvSince">0</b></div>
+      <div><span>BIG</span><b class="seg" id="dvBig">0</b></div>
+      <div><span>REG</span><b class="seg" id="dvReg">0</b></div>
+      <div><span>総回転</span><b class="seg" id="dvTotal">0</b></div>
+    </div>
+    <div class="dvrate" id="dvRate"></div>
+    <ol class="dvhist" id="dvHist"></ol>
+    <button id="dvClose">閉じる（Esc）</button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

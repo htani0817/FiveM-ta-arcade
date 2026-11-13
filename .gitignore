@@ -1,0 +1,8 @@
+# 依存パッケージ（テストで使う fengari・luaparse は別の場所に入れる）
+node_modules/
+# Blender の自動バックアップ
+*.blend1
+# OS・同期ソフトが作るファイル
+.DS_Store
+Thumbs.db
+desktop.ini

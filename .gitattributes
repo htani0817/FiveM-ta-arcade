@@ -1,0 +1,7 @@
+# 改行は LF に揃える。バイナリは手を加えない
+* text=auto eol=lf
+*.png binary
+*.dds binary
+*.ydr binary
+*.ytyp binary
+*.blend binary

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="160" viewBox="0 0 128 160"><defs><radialGradient id="lon" cx=".5" cy=".45" r=".65">
+       <stop offset="0" stop-color="#fff6c2"/><stop offset=".45" stop-color="#ffb347"/><stop offset="1" stop-color="#e2321c"/>
+     </radialGradient></defs>
+    <rect x="44" y="4" width="40" height="16" rx="4" fill="#1d1d1d"/>
+    <rect x="44" y="140" width="40" height="16" rx="4" fill="#1d1d1d"/>
+    <ellipse cx="64" cy="80" rx="54" ry="62" fill="#4a1414" stroke="#2a0606" stroke-width="3"/>
+    <path d="M22.741494113183315 40 Q64 46 105.25850588681669 40" fill="none" stroke="#2c0a0a" stroke-width="2"/><path d="M14.209889025183976 56 Q64 62 113.79011097481603 56" fill="none" stroke="#2c0a0a" stroke-width="2"/><path d="M10.451418577888546 72 Q64 78 117.54858142211145 72" fill="none" stroke="#2c0a0a" stroke-width="2"/><path d="M10.451418577888546 88 Q64 94 117.54858142211145 88" fill="none" stroke="#2c0a0a" stroke-width="2"/><path d="M14.209889025183976 104 Q64 110 113.79011097481603 104" fill="none" stroke="#2c0a0a" stroke-width="2"/><path d="M22.741494113183315 120 Q64 126 105.25850588681669 120" fill="none" stroke="#2c0a0a" stroke-width="2"/>
+    <text x="64" y="102" text-anchor="middle" font-family="'Yu Mincho','YuMincho','Hiragino Mincho ProN',serif" font-weight="700" font-size="60"
+          fill="#250808">祭</text></svg>
