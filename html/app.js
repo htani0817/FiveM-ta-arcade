@@ -510,7 +510,7 @@
     if (q.has('big')) { Mock.mode = 'big'; Mock.bonusPay = 105; }
     if (q.has('slotadmin')) Mock.admin = { setting: 4, carried: 'big', force: q.get('slotadmin') || null };
     window.addEventListener('load', () => {
-      if (q.has('admin')) return; // 管理画面の見本は admin.js が開く
+      if (q.has('admin') || q.has('pachi')) return; // 管理画面の見本は admin.js、パチンコの見本は pachi.js が開く
       if (q.has('data')) openData({ id: 3, data: Mock.data });
       else open({ reels: reelsData, price: 100000, bet: 3, maxCredit: 50, wait: 4100, bonus: { big: 252, reg: 96 }, scale: 1, info: Mock.info() });
       // ?auto: レバーと停止を自動で押す（描画の確認用）

@@ -13,3 +13,14 @@ CREATE TABLE IF NOT EXISTS `ta_arcade_machines` (
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (`id`)
 );
+
+-- 払い戻せなかったお金の控え。次に座ったときと起動時に払い直して消す
+CREATE TABLE IF NOT EXISTS `ta_arcade_unpaid` (
+    `id` INT NOT NULL AUTO_INCREMENT,
+    `citizenid` VARCHAR(64) NOT NULL,
+    `amount` BIGINT NOT NULL,
+    `reason` VARCHAR(128) NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    KEY `citizenid` (`citizenid`)
+);

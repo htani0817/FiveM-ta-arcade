@@ -13,7 +13,16 @@ function A.isAdmin(src)
     return allowed == true or allowed == 1
 end
 
-function A.now() return GetGameTimer() end
+-- 今の時刻（ミリ秒）。戻らない時計にする
+-- GetGameTimer が 32 ビットで折り返す場合（約 24.8 日で負の数に戻る。実機では未確認）でも、
+-- 前より小さくなったら 2^32 を足して続きから数える。折り返さないなら何もしないのと同じ
+local timerBase, timerLast = 0, nil
+function A.now()
+    local t = GetGameTimer()
+    if timerLast and t < timerLast then timerBase = timerBase + 4294967296 end
+    timerLast = t
+    return timerBase + t
+end
 
 function A.clampSetting(s)
     s = math.floor(tonumber(s) or 1)
@@ -27,10 +36,52 @@ end
 --   lamp(m)               周りに見せるランプが点いているか
 --   publicData(m)         座っていない人にも見せるデータ
 --   adminState(m)         管理者だけに見せる中の状態
---   onDrop(src)           切断・停止のとき（座っていたら精算する）
+--   onDrop(src)           切断・キャラクターの切り替えのとき（座っていたら精算する）
+--   onStop()              リソースの停止のとき（座っている全員を精算する）
 --   warmup(step)          起動時の先回りの計算（任意）
 function A.registerGame(name, mod)
     A.games[name] = mod
+end
+
+---------------------------------------------------------------------------
+-- お金を渡す（どのゲームもここを通す）
+---------------------------------------------------------------------------
+
+-- citizenid 宛てに現金を渡す（落ちた後でも qbx_core がオフラインの人に保存する）。戻り値: 渡せた金額
+-- 渡せなかったとき（qbx_core が断った・止まっている）は ta_arcade_unpaid に残し、あとで払い直す
+function A.pay(citizenid, yen, reason)
+    yen = math.floor(tonumber(yen) or 0)
+    if yen <= 0 or not citizenid then return 0 end
+    local ok, done = pcall(function() return exports.qbx_core:AddMoney(citizenid, 'cash', yen, reason) end)
+    if ok and done then return yen end
+    print(('[ta-arcade] 払い戻しに失敗しました: %s に %d円（%s）。未払いとして残します'):format(tostring(citizenid), yen, tostring(reason)))
+    MySQL.insert('INSERT INTO ta_arcade_unpaid (citizenid, amount, reason) VALUES (?, ?, ?)', { citizenid, yen, reason })
+    return 0
+end
+
+-- 未払いを払い直す。citizenid を渡すとその人の分だけ、渡さなければ全員の分。戻り値: 払えた金額
+-- 中で DB を待つので、席を確保するような処理の途中では呼ばない（別のスレッドから呼ぶ）
+function A.retryUnpaid(citizenid)
+    local rows
+    if citizenid then
+        rows = MySQL.query.await('SELECT id, citizenid, amount, reason FROM ta_arcade_unpaid WHERE citizenid = ?', { citizenid })
+    else
+        rows = MySQL.query.await('SELECT id, citizenid, amount, reason FROM ta_arcade_unpaid')
+    end
+    local paid = 0
+    for _, r in ipairs(rows or {}) do
+        -- 先に行を消し、消せたときだけ払う（同時に 2 か所から払い直しても二重に払わない）。払えなければ A.pay がまた残す
+        if MySQL.update.await('DELETE FROM ta_arcade_unpaid WHERE id = ?', { r.id }) == 1 then
+            paid = paid + A.pay(r.citizenid, r.amount, r.reason)
+        end
+    end
+    if paid > 0 then print(('[ta-arcade] 未払いだった %d円を払い直しました'):format(paid)) end
+    return paid
+end
+
+-- 座った後に呼ぶ: その人の未払いがあれば払い直す（席の確保を待たせないよう別のスレッドで）
+function A.retryUnpaidLater(citizenid)
+    CreateThread(function() A.retryUnpaid(citizenid) end)
 end
 
 function A.markDirty(m) A.dirty[m.id] = true end
@@ -112,6 +163,13 @@ AddEventHandler('playerDropped', function()
     for _, mod in pairs(A.games) do mod.onDrop(src) end
 end)
 
+-- キャラクターを切り替えた（切断はしていない）。qbx_core にまだ登録が残っているうちに精算して席を空ける
+AddEventHandler('QBCore:Server:OnPlayerUnload', function(src)
+    src = tonumber(src)
+    if not src then return end
+    for _, mod in pairs(A.games) do mod.onDrop(src) end
+end)
+
 AddEventHandler('onResourceStop', function(res)
     if res ~= GetCurrentResourceName() then return end
     for _, mod in pairs(A.games) do mod.onStop() end
@@ -147,6 +205,14 @@ lib.callback.register('ta-arcade:admin:list', function(src)
     for _, m in pairs(A.machines) do list[#list + 1] = adminRow(m) end
     table.sort(list, function(a, b) return a.id < b.id end)
     return list
+end)
+
+-- 払い戻せずに残っている分（件数と合計）。管理画面に出す
+lib.callback.register('ta-arcade:admin:unpaid', function(src)
+    if not adminOnly(src) then return nil end
+    local r = MySQL.query.await('SELECT COUNT(*) AS n, COALESCE(SUM(amount), 0) AS total FROM ta_arcade_unpaid')
+    local row = r and r[1] or {}
+    return { count = tonumber(row.n) or 0, total = tonumber(row.total) or 0 }
 end)
 
 lib.callback.register('ta-arcade:admin:place', function(src, game, x, y, z, h, setting)

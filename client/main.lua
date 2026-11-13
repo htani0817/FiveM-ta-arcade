@@ -21,6 +21,7 @@ end
 -- ゲームの処理に要るもの:
 --   targetOptions(id)  台の ox_target に足す選択肢
 --   lampLight          ランプの明かり（Config.Slot.LampLight の形。無ければ光らせない）
+--   forceClose()       キャラクターの切り替えのとき。座っていたら画面を閉じて立つ（任意）
 function AC.registerGame(name, mod) AC.games[name] = mod end
 
 ---------------------------------------------------------------------------
@@ -67,7 +68,10 @@ local function spawn(m)
         SetEntityHeading(chair, m.heading)
         FreezeEntityPosition(chair, true)
         m.chair = chair
+        SetModelAsNoLongerNeeded(g.chair)
     end
+    -- 置いた後はモデルを手放す（置いた物が残っている間はゲームが持ち続ける）
+    SetModelAsNoLongerNeeded(g.model)
 
     local id = m.id
     local options = mod.targetOptions(id)
@@ -270,6 +274,8 @@ local function startPlacement(game, setting)
         lib.hideTextUI()
         DeleteEntity(ghost)
         if ghostChair then DeleteEntity(ghostChair) end
+        SetModelAsNoLongerNeeded(g.model)
+        if g.chair then SetModelAsNoLongerNeeded(g.chair) end
         AC.busy = false
         -- 終わったら管理画面に戻る
         openAdmin(placed > 0 and ('%d 台置きました'):format(placed) or nil)
@@ -285,7 +291,7 @@ local function gameList()
     for _, name in ipairs(Config.GameOrder) do
         local g = Config.Games[name]
         if g and AC.games[name] then
-            list[#list + 1] = { name = name, label = g.label, settings = g.settings == true }
+            list[#list + 1] = { name = name, label = g.label, settings = g.settings == true, defaultSetting = g.defaultSetting or 1 }
         end
     end
     return list
@@ -300,8 +306,12 @@ local function adminPayload(extra)
         row.label = Config.Games[row.game] and Config.Games[row.game].label or row.game
     end
     local payload = {
-        action = 'admin', machines = list, games = gameList(), defaultSetting = Config.Slot.DefaultSetting,
+        action = 'admin', machines = list, games = gameList(),
+        -- ゲームごとの数字（管理画面の表示に使う）
         bonusEnd = { big = Config.Slot.Bonus.big.endPay, reg = Config.Slot.Bonus.reg.endPay },
+        pachi = { price = Config.Pachi.BallPrice },
+        -- 払い戻せずに残っている分（件数と合計）
+        unpaid = lib.callback.await('ta-arcade:admin:unpaid', false),
     }
     for k, v in pairs(extra or {}) do payload[k] = v end
     return payload
@@ -366,5 +376,18 @@ end)
 RegisterNUICallback('admin:place', function(data, cb)
     cb({ ok = true })
     closeAdmin()
-    startPlacement(tostring(data.game), tonumber(data.setting) or Config.Slot.DefaultSetting)
+    local game = tostring(data.game)
+    startPlacement(game, tonumber(data.setting) or (Config.Games[game] and Config.Games[game].defaultSetting) or 1)
+end)
+
+---------------------------------------------------------------------------
+-- キャラクターの切り替え
+---------------------------------------------------------------------------
+
+-- サーバーは同じときに精算して席を空ける。こちらは画面を閉じ、操作を返す
+RegisterNetEvent('QBCore:Client:OnPlayerUnload', function()
+    for _, mod in pairs(AC.games) do
+        if mod.forceClose then mod.forceClose() end
+    end
+    if adminOpen then closeAdmin() end
 end)
