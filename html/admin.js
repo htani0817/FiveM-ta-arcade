@@ -46,9 +46,9 @@
     root.id = 'admin';
     root.className = 'hidden';
     root.innerHTML = `
-      <div class="a-win" role="dialog" aria-label="ta-arcade の管理">
+      <div class="a-win" role="dialog" aria-label="Arcade 管理">
         <header class="a-head">
-          <span class="a-brand">ta-arcade<span>管理</span></span>
+          <span class="a-brand">Arcade<span>管理</span></span>
           <span class="a-spacer"></span>
           <button class="a-btn quiet" data-act="refresh" title="読み込み直す">${icon('refresh')}</button>
           <button class="a-btn quiet" data-act="close"><span class="a-key">Esc</span>閉じる</button>
