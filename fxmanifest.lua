@@ -5,7 +5,7 @@ lua54 'yes'
 name 'ta-arcade'
 description 'Arcade games for the town. Pachislot "Yomatsuri" with custom machine and chair props, admin console and cash betting'
 author 'Tani'
-version '3.0.0'
+version '3.0.1'
 
 ui_page 'html/index.html'
 
