@@ -66,7 +66,7 @@
         return [
           ['状態', mode],
           ['保留', `${fmt(st.hold)} 個`],
-          ['変動', st.spin ? (st.spin.hit ? dot(true, '当たりの変動中') : st.spin.reach ? 'リーチ中' : '変動中') : '止まっている'],
+          ['変動', st.spin ? (st.spin.hit ? dot(true, '当たりの変動中') : ({ reach: 'リーチ中', sp: 'スーパーリーチ中', full: '全回転中' })[st.spin.stage] || '変動中') : '止まっている'],
         ];
       },
       note: '6 がいちばん出る。打っている人には見えない。変えるとすぐ次の変動から効く',
@@ -490,7 +490,7 @@
       machines: [
         { id: 8, game: 'pachi', label: 'パチンコ 宵花火', x: -1202.0, y: -1563.8, z: 4.6, h: 35, dist: 4.5, setting: 3, busy: true, seatName: '佐藤 花子', lamp: true,
           data: { total: 2210, kakuhen: 7, normal: 5, since: 64, history: [{ t: 'kakuhen', g: 31, r: 10 }, { t: 'kakuhen', g: 12, r: 4 }, { t: 'normal', g: 402, r: 4 }, { t: 'kakuhen', g: 88, r: 4 }, { t: 'normal', g: 251, r: 10 }, { t: 'kakuhen', g: 143, r: 4 }] },
-          state: { mode: 'kakuhen', jitanLeft: 0, hold: 3, spin: { reach: false, hit: false }, jackpot: null } },
+          state: { mode: 'kakuhen', jitanLeft: 0, hold: 3, spin: { stage: 'none', hit: false }, jackpot: null } },
         { id: 3, game: 'slot', label: 'パチスロ 夜祭', x: -1201.4, y: -1563.2, z: 4.6, h: 35, dist: 4.2, setting: 4, busy: true, seatName: '山田 太郎', lamp: true,
           data: { total: 1834, big: 6, reg: 4, since: 142, history: [{ t: 'big', g: 88 }, { t: 'reg', g: 301 }, { t: 'big', g: 46 }, { t: 'big', g: 412 }, { t: 'reg', g: 157 }, { t: 'big', g: 233 }, { t: 'reg', g: 19 }, { t: 'big', g: 264 }] },
           state: { mode: 'normal', carried: 'big', bonusPay: 0, lamp: true } },

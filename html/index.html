@@ -139,14 +139,11 @@
 
       <div class="p-board">
         <canvas id="pBoard" width="560" height="584"></canvas>
-        <div class="p-lcd" id="pLcd">
-          <canvas id="pSky" width="260" height="160"></canvas>
-          <div class="p-digits" id="pDigits"><b>7</b><b>3</b><b>5</b></div>
-          <div class="p-call hidden" id="pCall"></div>
-          <div class="p-round hidden" id="pRound"><span id="pRoundNo">ROUND 1 / 4</span><span class="dots" id="pRoundDots"></span></div>
-        </div>
+        <!-- 液晶。図柄・リーチ・花火は全部この canvas に描く（位置と大きさは盤面の定義から決める） -->
+        <div class="p-lcd" id="pLcd"><canvas id="pLcdCv"></canvas></div>
         <div class="p-hold" id="pHold"><i></i><i></i><i></i><i></i></div>
         <div class="p-right hidden" id="pRight">右打ち</div>
+        <div class="p-warn hidden" id="pWarn"></div>
       </div>
 
       <div class="infobar p-info">
@@ -163,6 +160,11 @@
 
       <div class="p-shelf">
         <div class="p-tray"><span id="pTrayBalls"></span></div>
+        <div class="p-power" title="ハンドルの強さ（← → で回す）">
+          <span class="lbl">ハンドル</span>
+          <span class="seg" id="pPowerNum">32</span>
+          <div class="bar"><i id="pPowerBar"></i><b class="mark l"></b><b class="mark r"></b></div>
+        </div>
         <button class="p-handle" id="pHandle" title="打ち出しの入/切（スペース）"><span class="grip"></span></button>
         <button class="payout" id="pLeave" title="精算して立つ（Esc）">精算</button>
       </div>
@@ -178,6 +180,8 @@
       </div>
       <div class="card keys">
         <div><kbd>Space</kbd> 打ち出しの入/切</div>
+        <div><kbd>←</kbd><kbd>→</kbd> ハンドルを回す（<kbd>Shift</kbd> で大きく）</div>
+        <div><kbd>↑</kbd> 右打ち　<kbd>↓</kbd> 左打ちに戻す</div>
         <div><kbd>M</kbd> 音</div>
         <div><kbd>Esc</kbd> 精算して立つ</div>
       </div>
@@ -187,10 +191,11 @@
       </div>
       <div class="card p-rules">
         <div class="ttl">遊び方</div>
-        <p>玉がまん中の<b>ヘソ</b>に入ると図柄が回る。3つ揃えば大当たり。</p>
+        <p>ハンドルの強さで玉の落ちる所が変わる。液晶の左上を狙うと、玉が釘を伝って<b>ヘソ</b>へ寄る。</p>
+        <p>ヘソに入ると図柄が回る。3つ揃えば大当たり。</p>
         <p><b class="odd">奇数</b>で揃うと<b>確変</b>。次の大当たりまで当たりやすい。</p>
         <p><b class="even">偶数</b>で揃うと<b>時短</b> <span id="pJitan">100</span>回転。</p>
-        <p>大当たり中と確変・時短中は、玉が右へ飛ぶ（右打ち）。</p>
+        <p>大当たり中と確変・時短中は<b>右打ち</b>。ハンドルを右いっぱいへ回す。</p>
         <p class="note">持ち玉が無くなると、現金から <span id="pLend">25</span>玉ずつ借りる。</p>
       </div>
     </aside>

@@ -4,8 +4,8 @@ module.paths.push(process.env.NODE_MODULES || '');
 const luaparse = require('luaparse');
 const dir = path.join(__dirname, '..');
 const files = ['config.lua', 'shared/slot_engine.lua', 'server/main.lua', 'server/slot.lua', 'server/start.lua', 'client/main.lua', 'client/slot.lua',
-  'server/pachi_engine.lua', 'server/pachi.lua', 'client/pachi.lua', 'fxmanifest.lua'];
-const known = new Set(('Config SlotEngine PachiEngine Arcade ArcadeClient lib cache exports json MySQL GlobalState LocalPlayer source vec2 vec3 vec4 vector3 ' +
+  'shared/pachi_board.lua', 'server/pachi_physics.lua', 'server/pachi_engine.lua', 'server/pachi.lua', 'client/pachi.lua', 'fxmanifest.lua'];
+const known = new Set(('Config SlotEngine PachiEngine PachiBoard PachiPhysics Arcade ArcadeClient lib cache exports json MySQL GlobalState LocalPlayer source vec2 vec3 vec4 vector3 ' +
   'print pairs ipairs type tostring tonumber math table string os next select error pcall setmetatable ' +
   'CreateThread Wait GetGameTimer TriggerClientEvent AddEventHandler RegisterNetEvent RegisterCommand RegisterNUICallback ' +
   'GetPlayerPed GetEntityCoords GetPlayerName GetCurrentResourceName IsPlayerAceAllowed ' +

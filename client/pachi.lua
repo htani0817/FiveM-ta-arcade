@@ -3,7 +3,7 @@
 local AC = ArcadeClient
 local C = Config.Pachi
 
-local seated = nil -- 座っている台 { id, firing, syncAt }
+local seated = nil -- 座っている台 { id, firing, power, syncAt }
 local sit, showData
 
 AC.registerGame('pachi', {
@@ -64,16 +64,17 @@ AC.pachiForceClose = function()
 end
 
 -- 打っていない間に、次にサーバーへ問い合わせる時刻を決める（要らなければ nil）
---   変動中: 変動が終わる時刻に 1 回。保留だけがある（玉が届く前）: 打ち出しの間隔で
---   大当たり中や何も無いときは問い合わせない
+--   飛んでいる玉も変動も無いときは問い合わせない
 local function planSync(s, info)
+    local wait = nil
+    -- 飛んでいる玉がある: いちばん早く届く時刻に（賞球と保留を受け取る）
+    if info.flying > 0 and info.nextLand then wait = math.max(C.ShotInterval // 2, info.nextLand + 50) end
+    -- 変動中: 変動が終わる時刻に
     if info.spin then
-        s.syncAt = GetGameTimer() + math.max(0, info.spin.duration - info.spin.elapsed) + 50
-    elseif info.hold > 0 and not info.jackpot then
-        s.syncAt = GetGameTimer() + C.ShotInterval
-    else
-        s.syncAt = nil
+        local left = math.max(0, info.spin.duration - info.spin.elapsed) + 50
+        if not wait or left < wait then wait = left end
     end
+    s.syncAt = wait and (GetGameTimer() + wait) or nil
 end
 
 -- サーバーの返事を画面へ渡す。戻り値が false なら席を立った
@@ -122,7 +123,7 @@ sit = function(id)
         return
     end
     AC.busy = true
-    local s = { id = id, firing = false, syncAt = nil }
+    local s = { id = id, firing = false, power = 0, syncAt = nil }
     seated = s
     planSync(s, res.info)
     local o = C.SitOffset
@@ -137,7 +138,8 @@ sit = function(id)
         lend = C.LendUnit,
         maxBalls = C.MaxBalls,
         interval = C.ShotInterval,
-        fall = C.FallTime,
+        board = PachiBoard.export(), -- 釘・風車・入賞口の並び（サーバーの物理計算と同じもの）
+        pay = C.Pay,
         roundCount = C.RoundCount,
         jitan = C.JitanSpins,
         scale = Config.UiScale,
@@ -151,7 +153,7 @@ sit = function(id)
             if now >= nextAt then
                 nextAt = math.max(nextAt + C.ShotInterval, now + C.ShotInterval // 2)
                 if s.firing then
-                    if not handle(s, lib.callback.await('ta-arcade:pachi:shoot', false, id)) then break end
+                    if not handle(s, lib.callback.await('ta-arcade:pachi:shoot', false, id, s.power)) then break end
                 elseif s.syncAt and now >= s.syncAt then
                     if not handle(s, lib.callback.await('ta-arcade:pachi:sync', false, id)) then break end
                 end
@@ -186,7 +188,14 @@ end
 RegisterNUICallback('pachi:fire', function(data, cb)
     if not seated then return cb({ ok = false }) end
     seated.firing = data.on == true
+    if tonumber(data.power) then seated.power = tonumber(data.power) end
     cb({ ok = true, on = seated.firing })
+end)
+
+-- ハンドルを回した（強さ 0〜100）。サーバーでも範囲を確かめる
+RegisterNUICallback('pachi:power', function(data, cb)
+    if seated and tonumber(data.power) then seated.power = tonumber(data.power) end
+    cb({ ok = true })
 end)
 
 RegisterNUICallback('pachi:leave', function(_, cb)

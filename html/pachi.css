@@ -35,34 +35,23 @@
 .p-board { position: relative; width: 560px; height: 584px; border-radius: 12px; overflow: hidden; border: 3px solid var(--gold); box-shadow: inset 0 0 0 2px #3b2b0d; background: #05060f; }
 #pBoard { display: block; width: 560px; height: 584px; }
 
-/* 液晶 */
-.p-lcd { position: absolute; left: 150px; top: 136px; width: 260px; height: 160px; border-radius: 10px; overflow: hidden; border: 3px solid var(--gold); box-shadow: 0 0 0 2px #1a1206, 0 6px 14px rgba(0, 0, 0, .6); background: linear-gradient(#060a1e, #121a44 70%, #1d1430); }
-#pSky { position: absolute; inset: 0; width: 100%; height: 100%; }
-.p-digits { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); align-items: center; justify-items: center; padding: 0 10px; }
-.p-digits b { width: 68px; height: 96px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font: 800 70px/1 'Yu Gothic UI', 'Meiryo', sans-serif; color: #fff; background: rgba(5, 6, 15, .55); box-shadow: inset 0 0 0 2px rgba(246, 217, 138, .5); text-shadow: 0 3px 0 rgba(0, 0, 0, .6); font-variant-numeric: tabular-nums; }
-.p-digits b.odd { color: #ff7a63; }
-.p-digits b.even { color: var(--ai); }
-.p-digits b.roll { color: rgba(255, 255, 255, .55); filter: blur(1.2px); }
-.p-digits b.slow { filter: none; color: #fff; }
-.p-digits.win b { box-shadow: inset 0 0 0 3px var(--gold-hi), 0 0 18px rgba(246, 217, 138, .8); animation: p-win .45s ease-in-out infinite alternate; }
-@keyframes p-win { from { transform: scale(1); } to { transform: scale(1.08); } }
-.p-digits.small { align-items: start; padding-top: 6px; }
-.p-digits.small b { width: 34px; height: 44px; font-size: 30px; border-radius: 5px; }
-.p-call { position: absolute; left: 0; right: 0; bottom: 6px; text-align: center; font-size: 18px; font-weight: 800; letter-spacing: .2em; color: var(--gold-hi); text-shadow: 0 0 8px rgba(246, 217, 138, .7), 0 2px 0 #000; }
-.p-call.hit { bottom: 50px; font-size: 34px; letter-spacing: .1em; color: #fff; text-shadow: 0 0 14px var(--shu), 0 3px 0 #000; }
-.p-round { position: absolute; left: 0; right: 0; bottom: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.p-round span:first-child { font: 800 24px/1 Consolas, monospace; color: var(--gold-hi); letter-spacing: .06em; text-shadow: 0 2px 0 #000; }
-.p-round .dots { display: flex; gap: 5px; }
-.p-round .dots i { width: 14px; height: 14px; border-radius: 50%; background: #2a2440; box-shadow: inset 0 0 0 1px #5a4a80; }
-.p-round .dots i.on { background: radial-gradient(circle at 35% 30%, #fff, #c9ccd6 55%, #6d7180); box-shadow: 0 0 6px rgba(255, 255, 255, .6); }
+/* 液晶（位置と大きさは pachi.js が盤面の定義から入れる。中身は canvas に描く） */
+.p-lcd { position: absolute; left: 160px; top: 122px; width: 240px; height: 146px; border-radius: 0 0 8px 8px; overflow: hidden; box-shadow: inset 0 0 0 3px var(--gold), 0 6px 14px rgba(0, 0, 0, .6); background: #060a1e; }
+#pLcdCv { display: block; width: 100%; height: 100%; }
+.p-lcd::after { content: ''; position: absolute; inset: 0; box-shadow: inset 0 0 0 3px var(--gold), inset 0 0 0 5px #1a1206; pointer-events: none; border-radius: 0 0 8px 8px; }
 
-/* 保留 */
-.p-hold { position: absolute; left: 150px; top: 308px; width: 260px; display: flex; justify-content: center; gap: 10px; }
-.p-hold i { width: 16px; height: 16px; border-radius: 50%; background: #171c3a; box-shadow: inset 0 0 0 1px #414a85; transition: background .15s; }
-.p-hold i.on { background: radial-gradient(circle at 35% 30%, #fff3c4, var(--gold) 60%, #7a5a14); box-shadow: 0 0 8px rgba(246, 217, 138, .7); }
+/* 保留（白・緑・赤は先読みの色） */
+.p-hold { position: absolute; left: 160px; top: 280px; width: 240px; display: flex; justify-content: center; gap: 10px; pointer-events: none; }
+.p-hold i { width: 15px; height: 15px; border-radius: 50%; background: #171c3a; box-shadow: inset 0 0 0 1px #414a85; transition: background .15s; }
+.p-hold i.on { background: radial-gradient(circle at 35% 30%, #fff, #cfd2da 60%, #6d7180); box-shadow: 0 0 6px rgba(255, 255, 255, .5); }
+.p-hold i.on.green { background: radial-gradient(circle at 35% 30%, #eaffea, #3fdc6a 60%, #0f6a2a); box-shadow: 0 0 9px rgba(63, 220, 106, .8); }
+.p-hold i.on.red { background: radial-gradient(circle at 35% 30%, #ffe1da, var(--shu) 60%, #6b1408); box-shadow: 0 0 10px rgba(232, 69, 44, .9); animation: p-hot .5s ease-in-out infinite alternate; }
+@keyframes p-hot { from { transform: scale(1); } to { transform: scale(1.18); } }
 
 .p-right { position: absolute; right: 18px; top: 18px; padding: 4px 12px 4px 14px; border-radius: 6px; font-size: 15px; font-weight: 800; letter-spacing: .12em; color: #1a1004; background: var(--gold-hi); box-shadow: 0 0 12px rgba(246, 217, 138, .6); }
 .p-right::after { content: ' ▶'; }
+/* 打つ向きが合っていないときの知らせ */
+.p-warn { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); padding: 6px 16px; border-radius: 6px; font-size: 15px; font-weight: 800; letter-spacing: .06em; white-space: nowrap; color: #fff; background: rgba(200, 56, 31, .95); box-shadow: 0 0 0 1px #ff9d8a; animation: p-chase .8s linear infinite; }
 
 /* 表示の段（.infobar の並びだけ変える） */
 .p-info { grid-template-columns: 1fr 1fr 1.4fr; }
@@ -71,13 +60,23 @@
 .state.jackpot { color: #1a1004; background: linear-gradient(90deg, #b8862a, var(--gold-hi), #b8862a); }
 
 /* 操作部: 上皿・ハンドル・精算 */
-.p-shelf { display: grid; grid-template-columns: 1fr 96px 74px; align-items: center; gap: 16px; margin: 14px -6px 0; padding: 14px 14px; border-radius: 8px; background: linear-gradient(#3a3226, #1a150d); border-top: 2px solid var(--gold); box-shadow: 0 6px 0 #0a0805; }
+.p-shelf { display: grid; grid-template-columns: 1fr 104px 96px 74px; align-items: center; gap: 16px; margin: 14px -6px 0; padding: 14px 14px; border-radius: 8px; background: linear-gradient(#3a3226, #1a150d); border-top: 2px solid var(--gold); box-shadow: 0 6px 0 #0a0805; }
 .p-tray { height: 56px; border-radius: 8px 8px 22px 22px; background: linear-gradient(#17130c, #2c2416); box-shadow: inset 0 6px 12px rgba(0, 0, 0, .7), inset 0 0 0 1px #5a4a26; overflow: hidden; display: flex; align-items: flex-end; padding: 0 10px 6px; }
 .p-tray span { display: block; height: 0; width: 100%; border-radius: 4px 4px 16px 16px; transition: height .25s;
   background-image: radial-gradient(circle at 35% 30%, #fff 0, #cfd2da 45%, #6d7180 100%); background-size: 14px 14px; }
-.p-handle { position: relative; width: 84px; height: 84px; border-radius: 50%; justify-self: center; background: radial-gradient(circle at 40% 35%, #5b5148, #1f1a15); box-shadow: 0 5px 0 #0a0805, inset 0 0 0 4px #4a3d24; transition: transform .2s, box-shadow .2s; }
+.p-handle { position: relative; width: 84px; height: 84px; border-radius: 50%; justify-self: center; transform: rotate(var(--turn, 0deg)); background: radial-gradient(circle at 40% 35%, #5b5148, #1f1a15); box-shadow: 0 5px 0 #0a0805, inset 0 0 0 4px #4a3d24; transition: transform .2s, box-shadow .2s; }
 .p-handle .grip { position: absolute; left: 36px; top: 6px; width: 12px; height: 34px; border-radius: 6px; background: linear-gradient(90deg, #8a8a8a, #e8e8e8, #8a8a8a); }
-.p-handle.on { transform: rotate(70deg); box-shadow: 0 5px 0 #0a0805, inset 0 0 0 4px var(--gold), 0 0 16px rgba(255, 106, 43, .6); background: radial-gradient(circle at 40% 35%, #ffd5a8, #ff6a2b 55%, #8c1f06); }
+.p-handle.on { box-shadow: 0 5px 0 #0a0805, inset 0 0 0 4px var(--gold), 0 0 16px rgba(255, 106, 43, .6); background: radial-gradient(circle at 40% 35%, #ffd5a8, #ff6a2b 55%, #8c1f06); }
+
+/* ハンドルの強さ */
+.p-power { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.p-power .lbl { font-size: 10px; letter-spacing: .14em; color: var(--muted); }
+.p-power .seg { font-size: 26px; line-height: 1; }
+.p-power .bar { position: relative; width: 100%; height: 8px; border-radius: 4px; background: #0b0a10; box-shadow: inset 0 0 0 1px #3a2f17; overflow: hidden; }
+.p-power .bar i { display: block; height: 100%; width: 32%; background: linear-gradient(90deg, #7a5a14, var(--gold-hi)); }
+.p-power .bar .mark { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255, 255, 255, .35); }
+.p-power .bar .mark.r { left: 78%; }
+.p-power .bar .mark.l { left: 50%; }
 
 /* ---- 横の案内 ---- */
 #pachiSide { width: 300px; display: flex; flex-direction: column; gap: 14px; }
