@@ -9,7 +9,8 @@ const L = lauxlib.luaL_newstate();
 lualib.luaL_openlibs(L);
 lua.lua_newtable(L);
 for (const f of ['config.lua', 'shared/slot_engine.lua', 'server/main.lua', 'server/slot.lua', 'server/start.lua', 'client/main.lua', 'client/slot.lua',
-  'server/pachi_engine.lua', 'server/pachi.lua', 'client/pachi.lua']) {
+  'server/pachi_engine.lua', 'server/pachi.lua', 'client/pachi.lua',
+  'shared/pachi_board.lua', 'server/pachi_physics.lua']) {
   const p = path.join(dir, f);
   if (!fs.existsSync(p)) continue;
   lua.lua_pushstring(L, to_luastring(fs.readFileSync(p, 'utf8')));

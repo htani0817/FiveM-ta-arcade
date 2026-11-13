@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # パチンコ台「宵花火」のテクスチャを作る（Pillow）
 # py -3 make_pachi_textures.py  → blender/tex/ta_pachi_atlas.dds と確認用の .png、場所の表 pachi_layout.json
-# 盤面の絵は、台の画面（html/pachi.js）と同じ寸法・同じ並べ方で描く（釘の位置も同じ決め方）
+# 盤面の絵は、盤面の定義（shared/pachi_board.lua を書き出した tex/pachi_board.json）から描く。先に書き出しておくこと
 import json, math, os
 from PIL import Image, ImageDraw, ImageFont
 
@@ -37,13 +37,17 @@ def put(name, im, x, y):
 
 
 # ---------------------------------------------------------------------------
-# 盤面 512x560（台の窓 0.50m x 0.547m に貼る）。html/pachi.js の座標を 0.914 倍して描く
+# 盤面 512x560（台の窓 0.50m x 0.547m に貼る）
+# 釘・風車・入賞口の並びは shared/pachi_board.lua のもの。tests/ で
+#   node lua-run.js pachi-export.lua board > ../blender/tex/pachi_board.json
+# として書き出した JSON を読む（サーバーの物理計算・台の画面と同じ並びになる）
 # ---------------------------------------------------------------------------
+BD = json.load(open(os.path.join(OUT, "pachi_board.json"), encoding="utf-8"))
 BW, BH = 512, 560
-K = BW / 560.0                    # 画面の盤面（幅 560）からの倍率
-CX, CY, R = 280, 292, 262         # 画面の盤面の円
-LCD = (150, 136, 260, 160)
-POCKET = {"heso": (280, 374), "denchu": (420, 398), "attacker": (388, 462), "out": (280, 540)}
+K = BW / float(BD["W"])           # 盤面の定義（幅 560）からの倍率
+CX, CY, R = BD["cx"], BD["cy"], BD["R"]
+LCD = (BD["lcd"]["x"], BD["lcd"]["y"], BD["lcd"]["w"], BD["lcd"]["h"])
+PK = BD["pocket"]
 
 
 def bx(x):
@@ -52,42 +56,6 @@ def bx(x):
 
 def by(y):
     return BH / 2 + (y - CY) * K
-
-
-def nails():
-    out = []
-
-    def clear(x, y):
-        if math.hypot(x - CX, y - CY) > R - 30:
-            return False
-        if LCD[0] - 16 < x < LCD[0] + LCD[2] + 16 and LCD[1] - 18 < y < LCD[1] + LCD[3] + 44:
-            return False
-        hx, hy = POCKET["heso"]
-        if abs(x - hx) < 30 and hy - 40 < y < hy + 30:
-            return False
-        dx, dy = POCKET["denchu"]
-        if abs(x - dx) < 34 and dy - 30 < y < dy + 24:
-            return False
-        ax, ay = POCKET["attacker"]
-        if abs(x - ax) < 64 and ay - 30 < y < ay + 28:
-            return False
-        ox, oy = POCKET["out"]
-        if abs(x - ox) < 40 and y > oy - 34:
-            return False
-        return True
-
-    row, y = 0, 62
-    while y < 540:
-        x = 44 + (row % 2) * 18
-        while x < 560 - 30:
-            if clear(x, y):
-                out.append((x, y))
-            x += 36
-        y += 31
-        row += 1
-    hy = POCKET["heso"][1]
-    out += [(265, hy - 20), (295, hy - 20), (246, hy - 36), (314, hy - 36)]
-    return out
 
 
 board = Image.new("RGBA", (BW, BH), LACQUER)
@@ -108,59 +76,75 @@ for i in range(60, 0, -1):
 # 遠くの花火
 sky = Image.new("RGBA", (BW, BH), (0, 0, 0, 0))
 ds = ImageDraw.Draw(sky)
-for (x, y, r, col, n) in ((96, 226, 62, SHU, 18), (468, 200, 70, GOLD_HI, 20), (176, 470, 54, AI, 16), (280, 76, 46, GOLD_HI, 14), (476, 340, 38, SHU, 12)):
+for (x, y, r, col, n) in ((92, 218, 58, SHU, 18), (476, 196, 62, GOLD_HI, 20), (170, 486, 52, AI, 16), (330, 470, 40, SHU, 12)):
     for i in range(n):
         a = 2 * math.pi * i / n
         x0, y0 = bx(x) + math.cos(a) * r * K * 0.25, by(y) + math.sin(a) * r * K * 0.25
         x1, y1 = bx(x) + math.cos(a) * r * K, by(y) + math.sin(a) * r * K
-        ds.line((x0, y0, x1, y1), fill=col[:3] + (95,), width=2)
-        ds.ellipse((x1 - 2, y1 - 2, x1 + 2, y1 + 2), fill=col[:3] + (140,))
+        ds.line((x0, y0, x1, y1), fill=col[:3] + (80,), width=2)
+        ds.ellipse((x1 - 2, y1 - 2, x1 + 2, y1 + 2), fill=col[:3] + (120,))
 mask = Image.new("L", (BW, BH), 0)
 ImageDraw.Draw(mask).ellipse((bx(CX) - rr, by(CY) - rr, bx(CX) + rr, by(CY) + rr), fill=255)
 board.paste(Image.alpha_composite(board, sky), (0, 0), mask)
 d = ImageDraw.Draw(board)
-# 外枠のレール
+# 外レール
 d.ellipse((bx(CX) - rr, by(CY) - rr, bx(CX) + rr, by(CY) + rr), outline=GOLD, width=6)
-r2 = (R - 20) * K
-d.arc((bx(CX) - r2, by(CY) - r2, bx(CX) + r2, by(CY) + r2), 140, 292, fill=GOLD_LO, width=2)
+r2 = (BD["wall"] - 17) * K
+d.arc((bx(CX) - r2, by(CY) - r2, bx(CX) + r2, by(CY) + r2), 144, 204, fill=GOLD_LO, width=2)
+# 返しゴム
+rb = BD["rubber"]
+d.ellipse((bx(rb["x"]) - rb["r"] * K, by(rb["y"]) - rb["r"] * K, bx(rb["x"]) + rb["r"] * K, by(rb["y"]) + rb["r"] * K), fill=(58, 58, 64, 255), outline=(119, 119, 127, 255))
 # 釘
-for (x, y) in nails():
-    d.ellipse((bx(x) - 3, by(y) - 3, bx(x) + 3, by(y) + 3), fill=(201, 149, 46, 255))
-    d.ellipse((bx(x) - 2, by(y) - 2, bx(x), by(y)), fill=(255, 243, 196, 255))
+for n in BD["nails"]:
+    x, y = bx(n["x"]), by(n["y"])
+    d.ellipse((x - 3, y - 3, x + 3, y + 3), fill=(201, 149, 46, 255))
+    d.ellipse((x - 2, y - 2, x, y), fill=(255, 243, 196, 255))
+# 風車
+for w in BD["windmills"]:
+    x, y, r = bx(w["x"]), by(w["y"]), w["r"] * K * 1.5
+    for k in range(4):
+        a = math.pi / 2 * k + 0.4
+        d.polygon([(x, y), (x + math.cos(a) * r, y + math.sin(a) * r), (x + math.cos(a + 0.7) * r * 0.6, y + math.sin(a + 0.7) * r * 0.6)], fill=SHU)
+    d.ellipse((x - 3, y - 3, x + 3, y + 3), fill=(255, 243, 196, 255))
 # アウト口
-ox, oy = POCKET["out"]
-d.ellipse((bx(ox) - 24, by(oy) - 8, bx(ox) + 24, by(oy) + 8), fill=(0, 0, 0, 255), outline=GOLD_LO, width=2)
+o = PK["out"]
+d.ellipse((bx(o["x"]) - (o["w"] - 6) * K, by(o["y"] - 2) - 8, bx(o["x"]) + (o["w"] - 6) * K, by(o["y"] - 2) + 8), fill=(0, 0, 0, 255), outline=GOLD_LO, width=2)
+# 一般入賞口
+for g in PK["general"]:
+    d.polygon([(bx(g["x"] - 10), by(g["y"] - 3)), (bx(g["x"] + 10), by(g["y"] - 3)), (bx(g["x"] + 7), by(g["y"] + 9)), (bx(g["x"] - 7), by(g["y"] + 9))], fill=(63, 191, 106, 255))
 # ヘソ
-hx, hy = POCKET["heso"]
-d.polygon([(bx(hx - 15), by(hy - 8)), (bx(hx + 15), by(hy - 8)), (bx(hx + 10), by(hy + 10)), (bx(hx - 10), by(hy + 10))], fill=SHU)
-d.ellipse((bx(hx) - 10, by(hy - 6) - 4, bx(hx) + 10, by(hy - 6) + 4), fill=(18, 6, 10, 255))
+h = PK["heso"]
+d.polygon([(bx(h["x"] - 12), by(h["y"] - 4)), (bx(h["x"] + 12), by(h["y"] - 4)), (bx(h["x"] + 8), by(h["y"] + 12)), (bx(h["x"] - 8), by(h["y"] + 12))], fill=SHU)
+d.ellipse((bx(h["x"]) - 7, by(h["y"] - 2) - 3, bx(h["x"]) + 7, by(h["y"] - 2) + 3), fill=(18, 6, 10, 255))
 # 電チュー（閉じた形）
-dx, dy = POCKET["denchu"]
-d.line((bx(dx - 9), by(dy + 6), bx(dx - 17), by(dy - 12)), fill=(74, 90, 138, 255), width=4)
-d.line((bx(dx + 9), by(dy + 6), bx(dx + 17), by(dy - 12)), fill=(74, 90, 138, 255), width=4)
-d.rectangle((bx(dx - 11), by(dy), bx(dx + 11), by(dy + 12)), fill=(42, 53, 102, 255))
+dn = PK["denchu"]
+d.line((bx(dn["x"] - 8), by(dn["y"] + 4), bx(dn["x"] - 3), by(dn["y"] - 12)), fill=(74, 90, 138, 255), width=4)
+d.line((bx(dn["x"] + 8), by(dn["y"] + 4), bx(dn["x"] + 3), by(dn["y"] - 12)), fill=(74, 90, 138, 255), width=4)
+d.rectangle((bx(dn["x"] - 10), by(dn["y"]), bx(dn["x"] + 10), by(dn["y"] + 11)), fill=(42, 53, 102, 255))
 # アタッカー（閉じた形）
-ax, ay = POCKET["attacker"]
-d.rectangle((bx(ax - 48), by(ay - 2), bx(ax + 48), by(ay + 12)), fill=(61, 44, 16, 255), outline=(109, 83, 32, 255), width=2)
-# 液晶（奇数の 7 が揃った形で止めておく）
+at = PK["attacker"]
+d.rectangle((bx(at["x"] - at["w"]), by(at["y"] - at["h"]), bx(at["x"] + at["w"]), by(at["y"] + at["h"])), fill=(43, 32, 16, 255), outline=(109, 83, 32, 255), width=2)
+# 液晶（奇数の 7 が揃った形で止めておく）と屋根
 lx, ly, lw, lh = bx(LCD[0]), by(LCD[1]), LCD[2] * K, LCD[3] * K
 for i in range(int(lh)):
     t = i / lh
-    d.line((lx, ly + i, lx + lw, ly + i), fill=(int(6 + 23 * t), int(10 + 12 * t), int(30 + 30 * t), 255))
-for k in range(26):
+    d.line((lx, ly + i, lx + lw, ly + i), fill=(int(6 + 14 * t), int(10 + 18 * t), int(30 + 42 * t), 255))
+for k in range(30):
     sx, sy = lx + (k * 97 % 233) / 233.0 * lw, ly + (k * 53 % 101) / 101.0 * lh * 0.6
     d.point((sx, sy), fill=(255, 255, 255, 200))
-d.rounded_rectangle((lx, ly, lx + lw, ly + lh), 9, outline=GOLD, width=4)
-cw, ch = 62 * K, 96 * K
+d.rectangle((lx, ly, lx + lw, ly + lh), outline=GOLD, width=3)
+for sg in BD.get("segments", []):
+    d.line((bx(sg[0]), by(sg[1]), bx(sg[2]), by(sg[3])), fill=GOLD, width=5)
+cw, ch = 62 * K, 86 * K
 for i in range(3):
-    cx0 = lx + lw / 2 + (i - 1) * 80 * K - cw / 2
-    cy0 = ly + lh / 2 - ch / 2
-    d.rounded_rectangle((cx0, cy0, cx0 + cw, cy0 + ch), 7, fill=(5, 6, 15, 200), outline=(246, 217, 138, 150), width=2)
-    d.text((cx0 + cw / 2, cy0 + ch / 2), "7", font=font(FONT_B, int(72 * K)), fill=(255, 122, 99, 255), anchor="mm")
+    cx0 = lx + lw / 2 + (i - 1) * 72 * K - cw / 2
+    cy0 = ly + lh / 2 - ch / 2 - 2
+    d.rectangle((cx0, cy0, cx0 + cw, cy0 + ch), fill=(5, 6, 15, 170), outline=(246, 217, 138, 130), width=2)
+    d.text((cx0 + cw / 2, cy0 + ch / 2), "7", font=font(FONT_B, int(66 * K)), fill=(255, 122, 99, 255), anchor="mm")
 # 保留の玉（消えた形）
 for i in range(4):
-    hx0 = bx(CX) + (i - 1.5) * 26 * K
-    hy0 = by(LCD[1] + LCD[3] + 20)
+    hx0 = bx(CX) + (i - 1.5) * 25 * K
+    hy0 = by(LCD[1] + LCD[3] + 19)
     d.ellipse((hx0 - 7, hy0 - 7, hx0 + 7, hy0 + 7), fill=(23, 28, 58, 255), outline=(65, 74, 133, 255))
 put("board", board, 0, 0)
 

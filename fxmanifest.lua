@@ -5,7 +5,7 @@ lua54 'yes'
 name 'ta-arcade'
 description 'Arcade games for the town. Pachislot "Yomatsuri" and pachinko "Yoihanabi" with custom machine and chair props, admin console and cash betting'
 author 'Tani'
-version '3.1.0'
+version '3.2.0'
 
 ui_page 'html/index.html'
 
@@ -29,6 +29,7 @@ shared_scripts {
     '@ox_lib/init.lua',
     'config.lua',
     'shared/slot_engine.lua',
+    'shared/pachi_board.lua',
 }
 
 client_scripts {
@@ -42,6 +43,7 @@ server_scripts {
     '@oxmysql/lib/MySQL.lua',
     'server/main.lua',
     'server/slot.lua',
+    'server/pachi_physics.lua',
     'server/pachi_engine.lua',
     'server/pachi.lua',
     'server/start.lua',

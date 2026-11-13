@@ -97,14 +97,16 @@ Config.Pachi.BallPrice = 20000  -- 玉1個の値段（円）
 Config.Pachi.LendUnit = 25      -- 持ち玉が無いときに現金から借りる数（25玉 = 50万円）
 Config.Pachi.MaxBalls = 2500    -- 持ち玉の上限。超えた分はその場で現金で受け取る
 Config.Pachi.ShotInterval = 600 -- 打ち出しの間隔（ミリ秒）。サーバーでも確かめる
-Config.Pachi.FallTime = 2400    -- 打った玉が入賞口に届くまでの時間（ミリ秒）。画面の玉の動きと合わせる
+
+-- 玉がどこへ行くかは、盤面（shared/pachi_board.lua）の釘の並びと物理計算（server/pachi_physics.lua）で決まる
+-- ヘソに入る割合は、釘とハンドルの強さ（ストローク）から生まれる。割合を変えたいときは命釘の間隔（PachiBoard.hesoGap）を変える
 
 -- 台の設定（1〜6）。高いほど当たりやすい
 Config.Pachi.DefaultSetting = 1
 
 -- 大当たりの確率。数字は「何回転に1回」。通常時は設定ごと、確変中は共通
 -- 払い出しの割合の目安は README の表（tests/pachi-rtp.lua で計算）
-Config.Pachi.HitChance = { [1] = 228, [2] = 221, [3] = 214, [4] = 207, [5] = 201, [6] = 195 }
+Config.Pachi.HitChance = { [1] = 280, [2] = 271, [3] = 261, [4] = 251, [5] = 243, [6] = 235 }
 Config.Pachi.HighChance = 40
 
 -- 大当たりのうち確変（奇数の図柄）になる割合。残りは通常当たり（偶数の図柄）で、時短が付く
@@ -114,12 +116,11 @@ Config.Pachi.JitanSpins = 100 -- 時短の回転数
 -- 保留の上限
 Config.Pachi.HoldMax = 4
 
--- 玉1個が入賞口に入る割合と、入ったときの賞球
---   heso: 通常時のヘソ、denchu: 確変・時短中の電チュー、attacker: 大当たり中のアタッカー
-Config.Pachi.Entry = { heso = 0.069, denchu = 0.33, attacker = 0.90 }
-Config.Pachi.Pay = { heso = 3, denchu = 3, attacker = 15 }
+-- 入賞口に入ったときの賞球
+--   heso: ヘソ、denchu: 電チュー（確変・時短中だけ開く）、attacker: アタッカー（大当たり中だけ開く）、general: 一般入賞口
+Config.Pachi.Pay = { heso = 3, denchu = 2, attacker = 15, general = 5 }
 
--- 大当たり。1ラウンドはアタッカーに RoundCount 個入るまで
+-- 大当たり。1ラウンドは、アタッカーに RoundCount 個目の玉が届くまで（閉じる前に届いた玉は、数を超えても入る）
 -- Rounds は { ラウンド数, 割合 } の並び。ヘソで当たったときと電チューで当たったときで分ける
 Config.Pachi.RoundCount = 9
 Config.Pachi.Rounds = {
@@ -127,19 +128,29 @@ Config.Pachi.Rounds = {
     denchu = { { 4, 0.6 }, { 10, 0.4 } },
 }
 
+-- 演出の割合
+--   当たりの変動: hitFull = 全回転、hitSp = スーパーリーチ、残りはノーマルリーチ
+--   ハズレの変動: missReach = リーチになる割合、そのうち missSp = スーパーリーチに進む割合
+Config.Pachi.Stage = { hitFull = 0.04, hitSp = 0.62, missReach = 0.08, missSp = 0.18 }
+
+-- 保留の色（先読み）。当たりの保留とハズレの保留が、赤・緑に変わる割合（残りは白）
+Config.Pachi.Hot = { hitRed = 0.30, hitGreen = 0.35, missRed = 0.002, missGreen = 0.03 }
+
 -- 時間（ミリ秒）
 Config.Pachi.Time = {
-    spin = 6000,         -- ハズレの変動
-    spinShort = 3500,    -- 保留が2個以上あるときのハズレ
-    spinSupport = 1800,  -- 確変・時短中のハズレ
-    reach = 12000,       -- リーチがかかってハズレ
-    reachSupport = 6000, -- 確変・時短中のリーチハズレ
-    hit = 16000,         -- 大当たりの変動
-    hitSupport = 9000,   -- 確変・時短中の大当たりの変動
-    reachChance = 0.08,  -- ハズレのうちリーチになる割合
-    fanfare = 2500,      -- 図柄が揃ってからアタッカーが開くまで
-    roundGap = 1200,     -- ラウンドの間
-    ending = 2500,       -- 大当たりが終わってから次の変動まで
+    spin = 6000,          -- ハズレの変動
+    spinShort = 3500,     -- 保留が2個以上あるときのハズレ
+    spinSupport = 1800,   -- 確変・時短中のハズレ
+    reach = 12000,        -- ノーマルリーチ
+    reachSupport = 6000,
+    sp = 26000,           -- スーパーリーチ
+    spSupport = 13000,
+    full = 18000,         -- 全回転
+    fullSupport = 10000,
+    hitTail = 4000,       -- 当たりのときに足す時間（図柄が揃ってからの祝い）
+    fanfare = 2500,       -- 変動が終わってからアタッカーが開くまで
+    roundGap = 1200,      -- ラウンドの間
+    ending = 2500,        -- 大当たりが終わってから次の変動まで
 }
 
 -- データカウンターに残す大当たりの履歴の数

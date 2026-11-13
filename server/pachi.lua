@@ -1,8 +1,14 @@
 -- ta-arcade のパチンコ「宵花火」: 打ち出し、持ち玉とお金、管理者の「確実に当たり」
--- 玉の行き先と図柄の抽選は server/pachi_engine.lua。クライアントから受け取るのは「台の番号」と「打つかどうか」だけ
+-- 玉の動きは server/pachi_physics.lua、図柄の抽選と状態は server/pachi_engine.lua
+-- クライアントから受け取るのは「台の番号」「打つかどうか」「ハンドルの強さ」だけ
 local A = Arcade
 local E = PachiEngine
 local C = Config.Pachi
+
+-- 玉を動かすのは物理計算。打ち出しのむらの乱数もサーバーで引く
+E.simulate = function(power, gates)
+    return PachiPhysics.simulate(power, E.random, gates)
+end
 
 local sessions = {} -- [src] = { id, src, citizenid, balls, force, nextShot, nextSync }
 
@@ -26,21 +32,14 @@ local function publicData(m)
 end
 
 local function stateInfo(m, now)
-    local st = m.state
-    local sp, jp = st.spin, st.jackpot
-    return {
-        mode = st.mode,
-        jitanLeft = st.jitanLeft,
-        hold = #st.queue,
-        spin = sp and { elapsed = now - sp.startAt, duration = sp.endAt - sp.startAt, reach = sp.reach, hit = sp.hit ~= nil, digits = sp.digits } or nil,
-        jackpot = jp and { kind = jp.kind, round = jp.round, rounds = jp.rounds, count = jp.count, open = now >= jp.openAt } or nil,
-    }
+    return E.view(m.state, now, C)
 end
 
 local function seatInfo(m, s, now)
     local info = stateInfo(m, now)
     info.id = m.id
     info.balls = s.balls
+    info.inflight = E.inflight(m.state) -- 飛んでいる玉の賞球（届いたら持ち玉に入る）
     info.cash = exports.qbx_core:GetMoney(s.src, 'cash') or 0
     info.data = publicData(m)
     -- 管理者には中の状態も見せる（台の横の管理パネル用）
@@ -61,7 +60,7 @@ end
 
 -- 持ち玉と持ち主を台のデータに控える。60秒ごとに DB へ書かれ、サーバーが落ちても次の起動で持ち主に返せる
 local function keepOwner(m, s)
-    m.data.owner = { cid = s.citizenid, balls = s.balls }
+    m.data.owner = { cid = s.citizenid, balls = s.balls + E.inflight(m.state) }
     A.markDirty(m)
 end
 
@@ -102,6 +101,8 @@ function A.pachiLeave(src, dropped)
     sessions[src] = nil
     local m = A.machines[s.id]
     if m then
+        -- 飛んでいる玉の賞球は、届くのを待たずに受け取る（玉は盤面に残り、届けば保留にはなる）
+        s.balls = s.balls + E.advance(m.state, m.data, A.now(), C, m.setting, nil, nil) + E.settle(m.state)
         m.seat = nil
         -- 持ち玉の控えはすぐ消す（次の起動で二重に返さないため、精算より先に DB へ書く）
         m.data.owner = nil
@@ -132,7 +133,7 @@ lib.callback.register('ta-arcade:pachi:sit', function(src, id)
     local s = { id = id, src = src, citizenid = player.PlayerData.citizenid, balls = 0, nextShot = 0, nextSync = 0 }
     sessions[src] = s
     local now = A.now()
-    -- 空いていた間に終わった変動を進めておく
+    -- 空いていた間に終わった変動を進めておく（前の人の玉の賞球は、立ったときに渡し終えている）
     E.advance(m.state, m.data, now, C, m.setting, nil, nil)
     syncLamp(m)
     A.broadcastState(m)
@@ -156,8 +157,8 @@ local function allow(s, key, now, interval)
     return true
 end
 
--- fire が true なら玉を 1 個打つ。false なら変動の続きだけを受け取る
-local function tick(src, id, fire)
+-- fire が true なら玉を 1 個打つ。false なら続き（玉の到着・変動）だけを受け取る。power はハンドルの強さ 0〜100
+local function tick(src, id, fire, power)
     local s, m = seated(src, id)
     -- サーバー側で席が無くなっている（精算済み・台の撤去など）。left を返して、画面も閉じさせる
     if not m then return { ok = false, left = true, reason = '台に座っていません' } end
@@ -169,7 +170,8 @@ local function tick(src, id, fire)
     local now = A.now()
     local events = {}
     local force = s.force and A.isAdmin(src) and s.force or nil
-    E.advance(st, m.data, now, C, m.setting, force, events)
+    -- この間に届いた玉の賞球を持ち玉に入れる
+    s.balls = s.balls + E.advance(st, m.data, now, C, m.setting, force, events)
 
     local res = { ok = true, events = events }
     if fire then
@@ -192,18 +194,22 @@ local function tick(src, id, fire)
                 res.stop = stop
             else
                 s.balls = s.balls - 1
-                local to, pay = E.shoot(st, now, C, events)
-                s.balls = s.balls + pay
-                res.shot = { to = to, pay = pay }
-                -- 上限を超えた分はその場で現金にする（渡せなければ A.pay が未払いに残す）
-                if s.balls > C.MaxBalls then
-                    res.cashOut = A.pay(s.citizenid, (s.balls - C.MaxBalls) * C.BallPrice, 'ta-arcade パチンコ 払い出し')
-                    s.balls = C.MaxBalls
-                end
+                -- ハンドルの強さは 0〜100 の整数に直す（それ以外の値は受け取らない）
+                power = math.floor(tonumber(power) or 0)
+                if power < 0 then power = 0 elseif power > 100 then power = 100 end
+                local r, pay = E.shoot(st, now, C, power)
+                -- 軌道（サーバーが計算した玉の動き）を画面へ渡す。賞球は玉が届いた時刻に入る
+                res.shot = { to = r.to, t = r.t, pay = pay, path = r.path, hits = r.hits }
             end
         end
     elseif not allow(s, 'nextSync', now, SYNC_INTERVAL) then
         res.wait = true
+    end
+
+    -- 上限を超えた分はその場で現金にする（渡せなければ A.pay が未払いに残す）
+    if s.balls > C.MaxBalls then
+        res.cashOut = A.pay(s.citizenid, (s.balls - C.MaxBalls) * C.BallPrice, 'ta-arcade パチンコ 払い出し')
+        s.balls = C.MaxBalls
     end
 
     keepOwner(m, s)
@@ -212,12 +218,12 @@ local function tick(src, id, fire)
     return res
 end
 
-lib.callback.register('ta-arcade:pachi:shoot', function(src, id)
-    return tick(src, id, true)
+lib.callback.register('ta-arcade:pachi:shoot', function(src, id, power)
+    return tick(src, id, true, power)
 end)
 
 lib.callback.register('ta-arcade:pachi:sync', function(src, id)
-    return tick(src, id, false)
+    return tick(src, id, false, nil)
 end)
 
 ---------------------------------------------------------------------------
