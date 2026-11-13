@@ -27,6 +27,7 @@ AC.registerGame('slot', {
             E.warmup(want or nil, step)
         end
     end,
+    forceClose = function() if AC.slotForceClose then AC.slotForceClose() end end,
 })
 
 ---------------------------------------------------------------------------
@@ -56,6 +57,14 @@ local function leaveSeat(silent)
     if not silent and res and res.yen and res.yen > 0 then
         AC.notify(('精算しました（%s を受け取りました）'):format(AC.yen(res.yen)), 'success')
     end
+end
+
+-- キャラクターの切り替え: サーバーが精算済みなので、画面を閉じて立つだけ
+AC.slotForceClose = function()
+    if not seated then return end
+    SetNuiFocus(false, false)
+    SendNUIMessage({ action = 'close' })
+    standUp()
 end
 
 sit = function(id)

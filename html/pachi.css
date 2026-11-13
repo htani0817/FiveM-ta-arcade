@@ -1,0 +1,99 @@
+/* ta-arcade のパチンコ「宵花火」の画面。枠はパチスロ「夜祭」と同じ黒漆と金、盤面だけ宵の藍色にする
+   色の変数（--lacquer・--gold・--shu など）と .counter・.seg・.infobar・.card は style.css のものを使う */
+:root {
+  --yoi: #0d1430;      /* 宵の空 */
+  --yoi-2: #1b2452;
+  --ai: #7fb8ff;       /* 時短・偶数の藍 */
+}
+
+#pachiStage { position: fixed; inset: 0; background: radial-gradient(ellipse at center, rgba(8, 6, 14, .55), rgba(8, 6, 14, .82)); display: flex; align-items: center; justify-content: center; }
+#pachiScaler { display: flex; gap: 28px; align-items: center; transform-origin: center center; }
+
+/* ---- 台 ---- */
+#pachiCab {
+  width: 600px; padding: 14px 20px 18px; border-radius: 18px 18px 10px 10px;
+  background: linear-gradient(90deg, #07060b 0, var(--lacquer-2) 8%, var(--lacquer) 50%, var(--lacquer-2) 92%, #07060b 100%);
+  box-shadow: 0 0 0 2px #2b2214, 0 0 0 4px var(--gold), 0 30px 60px rgba(0, 0, 0, .6);
+  position: relative;
+}
+
+/* 上のランプ（大当たり中・確変中・時短中に灯る） */
+.p-crown { display: flex; justify-content: center; gap: 14px; height: 22px; align-items: center; margin-bottom: 10px; }
+.p-crown i { width: 46px; height: 10px; border-radius: 5px; background: #2a1d0a; border: 1px solid #5a4416; transition: background .2s, box-shadow .2s; }
+.p-crown.kakuhen i { background: var(--shu); border-color: #ff9d8a; box-shadow: 0 0 10px rgba(232, 69, 44, .8); }
+.p-crown.jitan i { background: var(--ai); border-color: #cfe4ff; box-shadow: 0 0 10px rgba(127, 184, 255, .7); }
+.p-crown.jackpot i { background: var(--gold-hi); border-color: #fff; box-shadow: 0 0 12px rgba(246, 217, 138, .9); animation: p-chase .7s linear infinite; }
+.p-crown.jackpot i:nth-child(2) { animation-delay: .1s; }
+.p-crown.jackpot i:nth-child(3) { animation-delay: .2s; }
+.p-crown.jackpot i:nth-child(4) { animation-delay: .3s; }
+.p-crown.jackpot i:nth-child(5) { animation-delay: .4s; }
+.p-crown.jackpot i:nth-child(6) { animation-delay: .5s; }
+.p-crown.jackpot i:nth-child(7) { animation-delay: .6s; }
+@keyframes p-chase { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+
+/* 盤面 */
+.p-board { position: relative; width: 560px; height: 584px; border-radius: 12px; overflow: hidden; border: 3px solid var(--gold); box-shadow: inset 0 0 0 2px #3b2b0d; background: #05060f; }
+#pBoard { display: block; width: 560px; height: 584px; }
+
+/* 液晶 */
+.p-lcd { position: absolute; left: 150px; top: 136px; width: 260px; height: 160px; border-radius: 10px; overflow: hidden; border: 3px solid var(--gold); box-shadow: 0 0 0 2px #1a1206, 0 6px 14px rgba(0, 0, 0, .6); background: linear-gradient(#060a1e, #121a44 70%, #1d1430); }
+#pSky { position: absolute; inset: 0; width: 100%; height: 100%; }
+.p-digits { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(3, 1fr); align-items: center; justify-items: center; padding: 0 10px; }
+.p-digits b { width: 68px; height: 96px; display: flex; align-items: center; justify-content: center; border-radius: 8px; font: 800 70px/1 'Yu Gothic UI', 'Meiryo', sans-serif; color: #fff; background: rgba(5, 6, 15, .55); box-shadow: inset 0 0 0 2px rgba(246, 217, 138, .5); text-shadow: 0 3px 0 rgba(0, 0, 0, .6); font-variant-numeric: tabular-nums; }
+.p-digits b.odd { color: #ff7a63; }
+.p-digits b.even { color: var(--ai); }
+.p-digits b.roll { color: rgba(255, 255, 255, .55); filter: blur(1.2px); }
+.p-digits b.slow { filter: none; color: #fff; }
+.p-digits.win b { box-shadow: inset 0 0 0 3px var(--gold-hi), 0 0 18px rgba(246, 217, 138, .8); animation: p-win .45s ease-in-out infinite alternate; }
+@keyframes p-win { from { transform: scale(1); } to { transform: scale(1.08); } }
+.p-digits.small { align-items: start; padding-top: 6px; }
+.p-digits.small b { width: 34px; height: 44px; font-size: 30px; border-radius: 5px; }
+.p-call { position: absolute; left: 0; right: 0; bottom: 6px; text-align: center; font-size: 18px; font-weight: 800; letter-spacing: .2em; color: var(--gold-hi); text-shadow: 0 0 8px rgba(246, 217, 138, .7), 0 2px 0 #000; }
+.p-call.hit { bottom: 50px; font-size: 34px; letter-spacing: .1em; color: #fff; text-shadow: 0 0 14px var(--shu), 0 3px 0 #000; }
+.p-round { position: absolute; left: 0; right: 0; bottom: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.p-round span:first-child { font: 800 24px/1 Consolas, monospace; color: var(--gold-hi); letter-spacing: .06em; text-shadow: 0 2px 0 #000; }
+.p-round .dots { display: flex; gap: 5px; }
+.p-round .dots i { width: 14px; height: 14px; border-radius: 50%; background: #2a2440; box-shadow: inset 0 0 0 1px #5a4a80; }
+.p-round .dots i.on { background: radial-gradient(circle at 35% 30%, #fff, #c9ccd6 55%, #6d7180); box-shadow: 0 0 6px rgba(255, 255, 255, .6); }
+
+/* 保留 */
+.p-hold { position: absolute; left: 150px; top: 308px; width: 260px; display: flex; justify-content: center; gap: 10px; }
+.p-hold i { width: 16px; height: 16px; border-radius: 50%; background: #171c3a; box-shadow: inset 0 0 0 1px #414a85; transition: background .15s; }
+.p-hold i.on { background: radial-gradient(circle at 35% 30%, #fff3c4, var(--gold) 60%, #7a5a14); box-shadow: 0 0 8px rgba(246, 217, 138, .7); }
+
+.p-right { position: absolute; right: 18px; top: 18px; padding: 4px 12px 4px 14px; border-radius: 6px; font-size: 15px; font-weight: 800; letter-spacing: .12em; color: #1a1004; background: var(--gold-hi); box-shadow: 0 0 12px rgba(246, 217, 138, .6); }
+.p-right::after { content: ' ▶'; }
+
+/* 表示の段（.infobar の並びだけ変える） */
+.p-info { grid-template-columns: 1fr 1fr 1.4fr; }
+.state.kakuhen { color: #fff; background: linear-gradient(90deg, #6b1408, var(--shu), #6b1408); }
+.state.jitan { color: #0a1630; background: linear-gradient(90deg, #2d5a96, var(--ai), #2d5a96); }
+.state.jackpot { color: #1a1004; background: linear-gradient(90deg, #b8862a, var(--gold-hi), #b8862a); }
+
+/* 操作部: 上皿・ハンドル・精算 */
+.p-shelf { display: grid; grid-template-columns: 1fr 96px 74px; align-items: center; gap: 16px; margin: 14px -6px 0; padding: 14px 14px; border-radius: 8px; background: linear-gradient(#3a3226, #1a150d); border-top: 2px solid var(--gold); box-shadow: 0 6px 0 #0a0805; }
+.p-tray { height: 56px; border-radius: 8px 8px 22px 22px; background: linear-gradient(#17130c, #2c2416); box-shadow: inset 0 6px 12px rgba(0, 0, 0, .7), inset 0 0 0 1px #5a4a26; overflow: hidden; display: flex; align-items: flex-end; padding: 0 10px 6px; }
+.p-tray span { display: block; height: 0; width: 100%; border-radius: 4px 4px 16px 16px; transition: height .25s;
+  background-image: radial-gradient(circle at 35% 30%, #fff 0, #cfd2da 45%, #6d7180 100%); background-size: 14px 14px; }
+.p-handle { position: relative; width: 84px; height: 84px; border-radius: 50%; justify-self: center; background: radial-gradient(circle at 40% 35%, #5b5148, #1f1a15); box-shadow: 0 5px 0 #0a0805, inset 0 0 0 4px #4a3d24; transition: transform .2s, box-shadow .2s; }
+.p-handle .grip { position: absolute; left: 36px; top: 6px; width: 12px; height: 34px; border-radius: 6px; background: linear-gradient(90deg, #8a8a8a, #e8e8e8, #8a8a8a); }
+.p-handle.on { transform: rotate(70deg); box-shadow: 0 5px 0 #0a0805, inset 0 0 0 4px var(--gold), 0 0 16px rgba(255, 106, 43, .6); background: radial-gradient(circle at 40% 35%, #ffd5a8, #ff6a2b 55%, #8c1f06); }
+
+/* ---- 横の案内 ---- */
+#pachiSide { width: 300px; display: flex; flex-direction: column; gap: 14px; }
+#pachiSide .bonusrow.jitan b { color: var(--ai); }
+.p-rules p { font-size: 13px; line-height: 1.7; color: var(--muted); }
+.p-rules p b { color: var(--ink); font-weight: 700; }
+.p-rules p b.odd { color: #ff7a63; }
+.p-rules p b.even { color: var(--ai); }
+.p-rules .note { margin-top: 6px; font-size: 12px; }
+#pHistory .k { color: var(--shu); font-weight: 700; }
+#pHistory .n { color: var(--ai); font-weight: 700; }
+#pdHist .k { color: var(--shu); font-weight: 700; }
+#pdHist .n { color: var(--ai); font-weight: 700; }
+
+#pToast { position: fixed; left: 50%; bottom: 6vh; transform: translateX(-50%); padding: 10px 20px; border-radius: 8px; background: rgba(13, 11, 20, .95); border: 1px solid var(--shu); font-size: 16px; }
+
+/* ---- データカウンター ---- */
+#pachiData { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(8, 6, 14, .5); }
+#pdClose { width: 100%; height: 40px; border-radius: 8px; border: 1px solid var(--gold); color: var(--gold-hi); font-weight: 700; }

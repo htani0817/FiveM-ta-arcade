@@ -68,13 +68,8 @@ A.registerGame('slot', {
 
 local function payCash(s, medals, reason)
     if medals <= 0 then return 0 end
-    local yen = medals * C.MedalPrice
-    -- citizenid で渡す（落ちた後でも qbx_core がオフラインの人に保存する）
-    if not exports.qbx_core:AddMoney(s.citizenid, 'cash', yen, reason) then
-        print(('[ta-arcade] 払い戻しに失敗しました: %s に %d円（%s）'):format(tostring(s.citizenid), yen, reason))
-        return 0
-    end
-    return yen
+    -- 渡せなかった分は A.pay が未払いとして残し、あとで払い直す
+    return A.pay(s.citizenid, medals * C.MedalPrice, reason)
 end
 
 ---------------------------------------------------------------------------
@@ -225,6 +220,7 @@ lib.callback.register('ta-arcade:slot:sit', function(src, id)
     m.seat = src
     sessions[src] = { id = id, credit = 0, src = src, citizenid = player.PlayerData.citizenid }
     A.broadcastState(m)
+    A.retryUnpaidLater(player.PlayerData.citizenid)
     return { ok = true, info = seatInfo(m, sessions[src]) }
 end)
 

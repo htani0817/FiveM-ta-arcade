@@ -31,6 +31,49 @@
   }
 
   const MODE = { normal: '通常', big: 'BIG 中', reg: 'REG 中' };
+  const dot = (on, text) => (on ? `<i class="a-dot"></i>${text}` : text);
+
+  // ゲームごとの見せ方。台の一覧・データ・台の中の状態で使う
+  //   summary: 一覧の 1 行、nums: データカウンターの数字、graph: 棒の見出しと色分け（hot は履歴の t）、
+  //   rate: 確率の 1 行、state: 台の中、empty: データを消した後の形（見本用）
+  const GAMES = {
+    slot: {
+      summary: (d) => `BIG ${fmt(d.big)} · REG ${fmt(d.reg)}`,
+      nums: (d) => [['現在', d.since], ['BIG', d.big], ['REG', d.reg], ['総回転', d.total]],
+      graph: { cap: 'ボーナス間の回転数', hot: 'big', hotLabel: 'BIG', coldLabel: 'REG' },
+      rate: (d) => `ボーナス合算 <span class="a-num">${rate(d.total, (d.big || 0) + (d.reg || 0))}</span>　BIG <span class="a-num">${rate(d.total, d.big)}</span>　REG <span class="a-num">${rate(d.total, d.reg)}</span>`,
+      state: (st) => {
+        const left = st.mode && st.mode !== 'normal' ? `（あと ${fmt(Math.max(0, (A.bonusEnd[st.mode] || 0) - (st.bonusPay || 0)))} 枚）` : '';
+        return [
+          ['状態', `${MODE[st.mode] || '—'}${left}`],
+          ['ボーナスの持ち越し', st.carried ? dot(true, st.carried.toUpperCase()) : 'なし'],
+          ['告知ランプ', st.lamp ? dot(true, '点灯') : '消灯'],
+        ];
+      },
+      note: '6 がいちばん出る。打っている人には見えない。変えるとすぐ次のゲームから効く',
+      empty: () => ({ total: 0, big: 0, reg: 0, since: 0, history: [] }),
+    },
+    pachi: {
+      summary: (d) => `確変 ${fmt(d.kakuhen)} · 通常 ${fmt(d.normal)}`,
+      nums: (d) => [['現在', d.since], ['確変', d.kakuhen], ['通常', d.normal], ['総回転', d.total]],
+      graph: { cap: '大当たり間の回転数', hot: 'kakuhen', hotLabel: '確変', coldLabel: '通常' },
+      rate: (d) => `大当たり合算 <span class="a-num">${rate(d.total, (d.kakuhen || 0) + (d.normal || 0))}</span>　確変 <span class="a-num">${fmt(d.kakuhen)}</span> 回　通常 <span class="a-num">${fmt(d.normal)}</span> 回`,
+      state: (st) => {
+        const jp = st.jackpot;
+        const mode = jp ? dot(true, `大当たり中（${jp.kind === 'kakuhen' ? '確変' : '通常'} ${jp.round} / ${jp.rounds}R）`)
+          : st.mode === 'kakuhen' ? dot(true, '確変中')
+            : st.mode === 'jitan' ? dot(true, `時短（残り ${fmt(st.jitanLeft)} 回転）`) : '通常';
+        return [
+          ['状態', mode],
+          ['保留', `${fmt(st.hold)} 個`],
+          ['変動', st.spin ? (st.spin.hit ? dot(true, '当たりの変動中') : st.spin.reach ? 'リーチ中' : '変動中') : '止まっている'],
+        ];
+      },
+      note: '6 がいちばん出る。打っている人には見えない。変えるとすぐ次の変動から効く',
+      empty: () => ({ total: 0, kakuhen: 0, normal: 0, since: 0, history: [] }),
+    },
+  };
+  const gameOf = (m) => GAMES[m.game] || GAMES.slot;
 
   // =====================================================================
   // 管理画面
@@ -49,6 +92,7 @@
       <div class="a-win" role="dialog" aria-label="Arcade 管理">
         <header class="a-head">
           <span class="a-brand">Arcade<span>管理</span></span>
+          <span class="a-unpaid hidden" data-part="unpaid"></span>
           <span class="a-spacer"></span>
           <button class="a-btn quiet" data-act="refresh" title="読み込み直す">${icon('refresh')}</button>
           <button class="a-btn quiet" data-act="close"><span class="a-key">Esc</span>閉じる</button>
@@ -80,6 +124,10 @@
   window.addEventListener('resize', scaleWin);
 
   function selected() { return A.machines.find((m) => m.id === A.sel) || null; }
+  function defaultSetting(name) {
+    const g = A.games.find((x) => x.name === name);
+    return (g && g.defaultSetting) || A.defaultSetting || 1;
+  }
 
   function rowHtml(m) {
     const d = m.data || {};
@@ -87,20 +135,20 @@
       <i class="a-dot${m.lamp ? '' : ' off'}" title="${m.lamp ? 'ランプが灯っている' : ''}"></i>
       <span class="t"><span class="id">#${m.id}</span><span class="name">${esc(m.label)}</span></span>
       <span class="s">設定${m.setting}</span>
-      <span class="m"><span class="a-num">${fmt(m.dist)} m</span><span class="a-num">BIG ${fmt(d.big)} · REG ${fmt(d.reg)}</span>${m.busy ? '<span class="busy">打っている人あり</span>' : ''}</span>
+      <span class="m"><span class="a-num">${fmt(m.dist)} m</span><span class="a-num">${gameOf(m).summary(d)}</span>${m.busy ? '<span class="busy">打っている人あり</span>' : ''}</span>
     </button>`;
   }
 
-  function graphHtml(d) {
+  function graphHtml(d, G) {
     const hist = (d.history || []).slice(0, 8).reverse(); // 古い順に左から
-    const items = hist.map((h) => ({ cls: h.t === 'big' ? 'big' : 'reg', g: h.g }));
+    const items = hist.map((h) => ({ cls: h.t === G.hot ? 'big' : 'reg', g: h.g }));
     items.push({ cls: 'now', g: d.since || 0 });
     const max = Math.max(200, ...items.map((i) => i.g));
     const bars = items.map((i) => `<div class="bar ${i.cls}"><i style="height:${Math.max(2, Math.round(i.g / max * 100))}%"></i><em>${fmt(i.g)}</em></div>`).join('');
     return `<div class="a-graph">
-      <div class="cap"><span>ボーナス間の回転数</span><span class="a-num">${hist.length ? '古い順' : 'まだありません'}</span></div>
+      <div class="cap"><span>${G.cap}</span><span class="a-num">${hist.length ? '古い順' : 'まだありません'}</span></div>
       <div class="bars">${bars}</div>
-      <div class="legend"><span><i style="background:var(--a-shu)"></i>BIG</span><span><i style="background:#4a4540"></i>REG</span><span><i style="box-shadow:inset 0 0 0 1px var(--a-muted)"></i>現在</span></div>
+      <div class="legend"><span><i style="background:var(--a-shu)"></i>${G.hotLabel}</span><span><i style="background:#4a4540"></i>${G.coldLabel}</span><span><i style="box-shadow:inset 0 0 0 1px var(--a-muted)"></i>現在</span></div>
     </div>`;
   }
 
@@ -115,7 +163,7 @@
     const game = A.games.find((g) => g.name === m.game);
     const confirmRemove = A.confirm === 'remove:' + m.id;
     const confirmReset = A.confirm === 'reset:' + m.id;
-    const left = st.mode && st.mode !== 'normal' ? `（あと ${fmt(Math.max(0, (A.bonusEnd[st.mode] || 0) - (st.bonusPay || 0)))} 枚）` : '';
+    const G = gameOf(m);
     return `
       <div>
         <div class="a-title"><h2>${esc(m.label)}</h2><span class="id">#${m.id}</span></div>
@@ -130,13 +178,10 @@
         <h3>データ</h3>
         <div class="a-counter">
           <div class="nums">
-            <div><span>現在</span><b>${fmt(d.since)}</b></div>
-            <div><span>BIG</span><b>${fmt(d.big)}</b></div>
-            <div><span>REG</span><b>${fmt(d.reg)}</b></div>
-            <div><span>総回転</span><b>${fmt(d.total)}</b></div>
+            ${G.nums(d).map(([k, v]) => `<div><span>${k}</span><b>${fmt(v)}</b></div>`).join('')}
           </div>
-          ${graphHtml(d)}
-          <div class="rate">ボーナス合算 <span class="a-num">${rate(d.total, (d.big || 0) + (d.reg || 0))}</span>　BIG <span class="a-num">${rate(d.total, d.big)}</span>　REG <span class="a-num">${rate(d.total, d.reg)}</span></div>
+          ${graphHtml(d, G.graph)}
+          <div class="rate">${G.rate(d)}</div>
         </div>
       </section>
 
@@ -144,15 +189,13 @@
       <section class="a-section">
         <h3>設定</h3>
         <div class="a-seg num">${[1, 2, 3, 4, 5, 6].map((s) => `<button data-act="setting" data-v="${s}" class="${s === m.setting ? 'on' : ''}">${s}</button>`).join('')}</div>
-        <div class="note">6 がいちばん出る。打っている人には見えない。変えるとすぐ次のゲームから効く</div>
+        <div class="note">${G.note}</div>
       </section>` : ''}
 
       <section class="a-section">
         <h3>台の中</h3>
         <div class="a-state">
-          <div><span>状態</span><b>${MODE[st.mode] || '—'}${left}</b></div>
-          <div><span>ボーナスの持ち越し</span><b>${st.carried ? `<i class="a-dot"></i>${st.carried.toUpperCase()}` : 'なし'}</b></div>
-          <div><span>告知ランプ</span><b>${st.lamp ? '<i class="a-dot"></i>点灯' : '消灯'}</b></div>
+          ${G.state(st).map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}
         </div>
       </section>
 
@@ -200,6 +243,11 @@
     ensureRoot();
     const sorted = A.machines.slice().sort((a, b) => a.dist - b.dist);
     part('count').textContent = sorted.length;
+    // 払い戻せずに残っているお金があれば、上に出す（次に座ったときと起動時に払い直される）
+    const up = part('unpaid');
+    const has = !!(A.unpaid && A.unpaid.count > 0);
+    up.classList.toggle('hidden', !has);
+    if (has) up.innerHTML = `<i class="a-dot"></i>未払い <span class="a-num">${fmt(A.unpaid.count)}</span> 件 · <span class="a-num">${fmt(A.unpaid.total)}</span>円`;
     const list = part('list');
     const top = list.scrollTop; // 差し替えてもスクロール位置は残す
     list.innerHTML = sorted.map(rowHtml).join('') || '<div class="a-empty">まだ台がありません</div>';
@@ -246,9 +294,9 @@
       case 'place':
         A.view = 'place';
         A.placeGame = A.placeGame || (A.games[0] && A.games[0].name);
-        A.placeSetting = A.defaultSetting;
+        A.placeSetting = defaultSetting(A.placeGame);
         return render();
-      case 'pickGame': A.placeGame = btn.dataset.v; return render();
+      case 'pickGame': A.placeGame = btn.dataset.v; A.placeSetting = defaultSetting(A.placeGame); return render();
       case 'placeSetting': A.placeSetting = +btn.dataset.v; return render();
       case 'cancelPlace': A.view = 'detail'; return render();
       case 'startPlace':
@@ -295,6 +343,7 @@
     A.games = d.games || [];
     A.defaultSetting = d.defaultSetting || 1;
     if (d.bonusEnd) A.bonusEnd = d.bonusEnd;
+    A.unpaid = d.unpaid || null;
     if (reset) { A.view = 'detail'; A.confirm = null; }
     if (d.select) A.sel = d.select;
     if (!A.machines.some((m) => m.id === A.sel)) {
@@ -379,22 +428,69 @@
 
   window.SlotAdminPanel = { render: renderPanel };
 
+  // ---- パチンコ（pachi.js が台の情報を渡す） ----
+  const pPanel = $('pachiAdmin');
+
+  function renderPachiPanel(info) {
+    if (!info || !info.admin) { pPanel.classList.add('hidden'); return false; }
+    const a = info.admin;
+    pPanel.classList.remove('hidden');
+    const force = a.force || 'off';
+    const label = { kakuhen: '確変', normal: '通常' };
+    pPanel.innerHTML = `
+      <div class="h"><b>管理</b><span class="a-num">台 #${info.id}</span></div>
+      <div class="grp">
+        <span>確実に当たり</span>
+        <div class="a-seg" style="grid-template-columns:repeat(3,1fr)">
+          ${[['off', '切'], ['kakuhen', '確変'], ['normal', '通常']].map(([v, l]) => `<button data-force="${v}" class="${force === v ? (v === 'off' ? 'on neutral' : 'on') : ''}">${l}</button>`).join('')}
+        </div>
+        <div class="note">${force === 'off' ? '入れると、通常時の変動が毎回大当たりになる' : `<span class="force-on">入っています</span>。通常時の変動が毎回 ${label[force]}当たりになる。確変・時短中は普段どおり`}</div>
+      </div>
+      <div class="grp">
+        <span>設定</span>
+        <div class="a-seg num" style="grid-template-columns:repeat(6,1fr)">
+          ${[1, 2, 3, 4, 5, 6].map((s) => `<button data-setting="${s}" class="${a.setting === s ? 'on' : ''}">${s}</button>`).join('')}
+        </div>
+      </div>
+      <dl>
+        ${GAMES.pachi.state(info).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}
+      </dl>`;
+    return true;
+  }
+
+  pPanel.addEventListener('click', async (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    b.blur();
+    let res = null;
+    if (b.dataset.force) res = await post('pachiAdmin:force', { mode: b.dataset.force === 'off' ? null : b.dataset.force });
+    else if (b.dataset.setting) res = await post('pachiAdmin:setting', { setting: +b.dataset.setting });
+    if (res && res.ok && res.info && window.PachiApp) window.PachiApp.applyInfo(res.info);
+  });
+
+  window.PachiAdminPanel = { render: renderPachiPanel };
+
   // =====================================================================
   // ブラウザで見るための見本（?preview&admin）
   // =====================================================================
   const Mock = {
     'admin:setting': (d) => { const m = A.machines.find((x) => x.id === d.id); return { ok: true, row: Object.assign({}, m, { setting: d.setting }) }; },
-    'admin:reset': (d) => { const m = A.machines.find((x) => x.id === d.id); return { ok: true, row: Object.assign({}, m, { data: { total: 0, big: 0, reg: 0, since: 0, history: [] } }) }; },
+    'admin:reset': (d) => { const m = A.machines.find((x) => x.id === d.id); return { ok: true, row: Object.assign({}, m, { data: gameOf(m).empty() }) }; },
     'admin:remove': () => ({ ok: true }),
-    'admin:refresh': () => ({ machines: A.machines, games: A.games, defaultSetting: 1 }),
+    'admin:refresh': () => ({ machines: A.machines, games: A.games, defaultSetting: 1, unpaid: A.unpaid }),
     'slotAdmin:force': (d) => { const i = Object.assign({}, last, { admin: Object.assign({}, last.admin, { force: d.mode }) }); return { ok: true, info: i }; },
     'slotAdmin:setting': (d) => { const i = Object.assign({}, last, { admin: Object.assign({}, last.admin, { setting: d.setting }) }); return { ok: true, info: i }; },
   };
   if (PREVIEW && Q.has('admin')) {
     window.addEventListener('load', () => open({
-      games: [{ name: 'slot', label: 'パチスロ 夜祭', settings: true }],
+      games: [{ name: 'slot', label: 'パチスロ 夜祭', settings: true, defaultSetting: 1 }, { name: 'pachi', label: 'パチンコ 宵花火', settings: true, defaultSetting: 1 }],
       defaultSetting: 1,
+      unpaid: Q.has('unpaid') ? { count: 2, total: 12400000 } : null,
+      select: Q.has('pachi') ? 8 : null,
       machines: [
+        { id: 8, game: 'pachi', label: 'パチンコ 宵花火', x: -1202.0, y: -1563.8, z: 4.6, h: 35, dist: 4.5, setting: 3, busy: true, seatName: '佐藤 花子', lamp: true,
+          data: { total: 2210, kakuhen: 7, normal: 5, since: 64, history: [{ t: 'kakuhen', g: 31, r: 10 }, { t: 'kakuhen', g: 12, r: 4 }, { t: 'normal', g: 402, r: 4 }, { t: 'kakuhen', g: 88, r: 4 }, { t: 'normal', g: 251, r: 10 }, { t: 'kakuhen', g: 143, r: 4 }] },
+          state: { mode: 'kakuhen', jitanLeft: 0, hold: 3, spin: { reach: false, hit: false }, jackpot: null } },
         { id: 3, game: 'slot', label: 'パチスロ 夜祭', x: -1201.4, y: -1563.2, z: 4.6, h: 35, dist: 4.2, setting: 4, busy: true, seatName: '山田 太郎', lamp: true,
           data: { total: 1834, big: 6, reg: 4, since: 142, history: [{ t: 'big', g: 88 }, { t: 'reg', g: 301 }, { t: 'big', g: 46 }, { t: 'big', g: 412 }, { t: 'reg', g: 157 }, { t: 'big', g: 233 }, { t: 'reg', g: 19 }, { t: 'big', g: 264 }] },
           state: { mode: 'normal', carried: 'big', bonusPay: 0, lamp: true } },

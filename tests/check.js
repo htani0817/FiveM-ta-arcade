@@ -3,15 +3,16 @@ const fs = require('fs'), path = require('path');
 module.paths.push(process.env.NODE_MODULES || '');
 const luaparse = require('luaparse');
 const dir = path.join(__dirname, '..');
-const files = ['config.lua', 'shared/slot_engine.lua', 'server/main.lua', 'server/slot.lua', 'server/start.lua', 'client/main.lua', 'client/slot.lua', 'fxmanifest.lua'];
-const known = new Set(('Config SlotEngine Arcade ArcadeClient lib cache exports json MySQL GlobalState LocalPlayer source vec2 vec3 vec4 vector3 ' +
+const files = ['config.lua', 'shared/slot_engine.lua', 'server/main.lua', 'server/slot.lua', 'server/start.lua', 'client/main.lua', 'client/slot.lua',
+  'server/pachi_engine.lua', 'server/pachi.lua', 'client/pachi.lua', 'fxmanifest.lua'];
+const known = new Set(('Config SlotEngine PachiEngine Arcade ArcadeClient lib cache exports json MySQL GlobalState LocalPlayer source vec2 vec3 vec4 vector3 ' +
   'print pairs ipairs type tostring tonumber math table string os next select error pcall setmetatable ' +
   'CreateThread Wait GetGameTimer TriggerClientEvent AddEventHandler RegisterNetEvent RegisterCommand RegisterNUICallback ' +
   'GetPlayerPed GetEntityCoords GetPlayerName GetCurrentResourceName IsPlayerAceAllowed ' +
   'CreateObjectNoOffset SetEntityHeading FreezeEntityPosition DoesEntityExist DeleteEntity GetOffsetFromEntityInWorldCoords ' +
   'DrawLightWithRange SetNuiFocus SendNUIMessage ClearPedTasks SetEntityCoords SetEntityCoordsNoOffset TaskStartScenarioAtPosition ' +
   'IsEntityDead IsPedRagdoll IsPedInAnyVehicle SetEntityAlpha SetEntityCollision GetEntityHeading DisableControlAction ' +
-  'IsDisabledControlPressed IsDisabledControlJustPressed ' +
+  'IsDisabledControlPressed IsDisabledControlJustPressed SetModelAsNoLongerNeeded ' +
   'fx_version game lua54 name description author version ui_page files data_file shared_scripts client_scripts server_scripts dependencies').split(/\s+/));
 let bad = 0;
 for (const f of files) {

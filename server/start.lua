@@ -66,6 +66,18 @@ CreateThread(function()
             PRIMARY KEY (`id`)
         )
     ]])
+    -- 払い戻せなかったお金の控え（A.pay が残し、A.retryUnpaid が払い直して消す）
+    MySQL.query.await([[
+        CREATE TABLE IF NOT EXISTS `ta_arcade_unpaid` (
+            `id` INT NOT NULL AUTO_INCREMENT,
+            `citizenid` VARCHAR(64) NOT NULL,
+            `amount` BIGINT NOT NULL,
+            `reason` VARCHAR(128) NULL,
+            `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (`id`),
+            KEY `citizenid` (`citizenid`)
+        )
+    ]])
     migrateOldTables()
 
     local rows = MySQL.query.await('SELECT * FROM ta_arcade_machines') or {}
@@ -82,6 +94,9 @@ CreateThread(function()
     print(('[ta-arcade] 台を %d 台読み込みました%s'):format(count,
         skipped > 0 and ('（知らないゲームの台 %d 台は出していません）'):format(skipped) or ''))
     A.broadcastList()
+
+    -- 前に払い戻せなかった分があれば払い直す
+    A.retryUnpaid()
 
     -- ゲームの先回りの計算（1 回ごとに Wait を挟む）
     for _, mod in pairs(A.games) do

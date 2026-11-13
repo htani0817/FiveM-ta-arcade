@@ -4,13 +4,14 @@
 <meta charset="utf-8">
 <title>ta-arcade</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="pachi.css">
 <link rel="stylesheet" href="admin.css">
 </head>
 <body>
 <div id="stage" class="hidden">
   <div id="scaler">
     <!-- 打っている人が管理者のときだけ出る管理パネル（admin.js） -->
-    <aside id="slotAdmin" class="hidden" aria-label="管理"></aside>
+    <aside id="slotAdmin" class="play-admin hidden" aria-label="管理"></aside>
 
     <!-- 台 -->
     <div id="cabinet">
@@ -119,7 +120,102 @@
   </div>
 </div>
 
+<!-- パチンコ「宵花火」 -->
+<div id="pachiStage" class="hidden">
+  <div id="pachiScaler">
+    <!-- 打っている人が管理者のときだけ出る管理パネル（admin.js） -->
+    <aside id="pachiAdmin" class="play-admin hidden" aria-label="管理"></aside>
+
+    <!-- 台 -->
+    <div id="pachiCab">
+      <div class="counter">
+        <div class="cnt"><span class="k">現在</span><span class="v seg" id="pSince">0</span></div>
+        <div class="cnt"><span class="k">確変</span><span class="v seg" id="pKakuhen">0</span></div>
+        <div class="cnt"><span class="k">通常</span><span class="v seg" id="pNormal">0</span></div>
+        <div class="cnt"><span class="k">総回転</span><span class="v seg" id="pTotal">0</span></div>
+      </div>
+
+      <div class="p-crown" id="pCrown"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+
+      <div class="p-board">
+        <canvas id="pBoard" width="560" height="584"></canvas>
+        <div class="p-lcd" id="pLcd">
+          <canvas id="pSky" width="260" height="160"></canvas>
+          <div class="p-digits" id="pDigits"><b>7</b><b>3</b><b>5</b></div>
+          <div class="p-call hidden" id="pCall"></div>
+          <div class="p-round hidden" id="pRound"><span id="pRoundNo">ROUND 1 / 4</span><span class="dots" id="pRoundDots"></span></div>
+        </div>
+        <div class="p-hold" id="pHold"><i></i><i></i><i></i><i></i></div>
+        <div class="p-right hidden" id="pRight">右打ち</div>
+      </div>
+
+      <div class="infobar p-info">
+        <div class="disp">
+          <span class="lbl">持ち玉</span>
+          <span class="seg big" id="pBalls">0</span>
+        </div>
+        <div class="disp">
+          <span class="lbl">賞球</span>
+          <span class="seg big" id="pPay">0</span>
+        </div>
+        <div class="state" id="pState"><span id="pStateText">&nbsp;</span></div>
+      </div>
+
+      <div class="p-shelf">
+        <div class="p-tray"><span id="pTrayBalls"></span></div>
+        <button class="p-handle" id="pHandle" title="打ち出しの入/切（スペース）"><span class="grip"></span></button>
+        <button class="payout" id="pLeave" title="精算して立つ（Esc）">精算</button>
+      </div>
+    </div>
+
+    <!-- 横の案内 -->
+    <aside id="pachiSide">
+      <div class="card">
+        <div class="row"><span>現金</span><b id="pCash">0円</b></div>
+        <div class="row"><span>レート</span><b id="pRate">0円 / 玉</b></div>
+        <div class="row"><span>持ち玉</span><b id="pBallsYen">0円</b></div>
+        <div class="row bonusrow hidden" id="pModeRow"><span id="pModeLabel">確変</span><b id="pModeLeft"></b></div>
+      </div>
+      <div class="card keys">
+        <div><kbd>Space</kbd> 打ち出しの入/切</div>
+        <div><kbd>M</kbd> 音</div>
+        <div><kbd>Esc</kbd> 精算して立つ</div>
+      </div>
+      <div class="card hist">
+        <div class="ttl">大当たり履歴</div>
+        <ol id="pHistory"></ol>
+      </div>
+      <div class="card p-rules">
+        <div class="ttl">遊び方</div>
+        <p>玉がまん中の<b>ヘソ</b>に入ると図柄が回る。3つ揃えば大当たり。</p>
+        <p><b class="odd">奇数</b>で揃うと<b>確変</b>。次の大当たりまで当たりやすい。</p>
+        <p><b class="even">偶数</b>で揃うと<b>時短</b> <span id="pJitan">100</span>回転。</p>
+        <p>大当たり中と確変・時短中は、玉が右へ飛ぶ（右打ち）。</p>
+        <p class="note">持ち玉が無くなると、現金から <span id="pLend">25</span>玉ずつ借りる。</p>
+      </div>
+    </aside>
+  </div>
+  <div id="pToast" class="hidden"></div>
+</div>
+
+<!-- パチンコのデータカウンター（台の前で見る） -->
+<div id="pachiData" class="hidden">
+  <div class="dv">
+    <div class="dvhead">台 <span id="pdId">#0</span> のデータ</div>
+    <div class="dvnums">
+      <div><span>現在</span><b class="seg" id="pdSince">0</b></div>
+      <div><span>確変</span><b class="seg" id="pdKakuhen">0</b></div>
+      <div><span>通常</span><b class="seg" id="pdNormal">0</b></div>
+      <div><span>総回転</span><b class="seg" id="pdTotal">0</b></div>
+    </div>
+    <div class="dvrate" id="pdRate"></div>
+    <ol class="dvhist" id="pdHist"></ol>
+    <button id="pdClose">閉じる（Esc）</button>
+  </div>
+</div>
+
 <script src="app.js"></script>
+<script src="pachi.js"></script>
 <script src="admin.js"></script>
 </body>
 </html>
